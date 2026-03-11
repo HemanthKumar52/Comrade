@@ -1,0 +1,68 @@
+version: '3.8'
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: partner-postgres
+    environment:
+      POSTGRES_DB: partner
+      POSTGRES_USER: partner
+      POSTGRES_PASSWORD: partner_dev_2025
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U partner"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: partner-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio
+    container_name: partner-minio
+    environment:
+      MINIO_ROOT_USER: partner_minio
+      MINIO_ROOT_PASSWORD: partner_minio_2025
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: partner-meilisearch
+    environment:
+      MEILI_MASTER_KEY: partner_meili_key_2025
+    ports:
+      - "7700:7700"
+    volumes:
+      - meili_data:/meili_data
+
+  libretranslate:
+    image: libretranslate/libretranslate
+    container_name: partner-translator
+    ports:
+      - "5500:5000"
+    environment:
+      LT_LOAD_ONLY: en,hi,ta,te,kn,fr,es,de,ja,zh,ar,ru,pt,ko,th
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  meili_data:

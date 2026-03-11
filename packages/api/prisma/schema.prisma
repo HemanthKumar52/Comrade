@@ -1,0 +1,1000 @@
+// ─────────────────────────────────────────────────────────────
+// Partner Travel App – Prisma Schema
+// Provider: PostgreSQL (with PostGIS where noted)
+// ─────────────────────────────────────────────────────────────
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  ENUMS
+// ═══════════════════════════════════════════════════════════════
+
+enum TravelerType {
+  SOLO
+  DUO
+  SQUAD
+  GROUP
+}
+
+enum TripStatus {
+  PLANNING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum VehicleType {
+  CAR
+  BIKE
+  BUS
+  TRAIN
+  FLIGHT
+  TREK
+  BICYCLE
+  AUTO
+}
+
+enum NoteType {
+  TEXT
+  VOICE
+  PHOTO
+  PLAN
+}
+
+enum BadgeFamily {
+  DISTANCE
+  PLACE
+  VEHICLE
+  SOCIAL
+  NATURE
+}
+
+enum UserLevel {
+  WANDERER
+  EXPLORER
+  VOYAGER
+  NAVIGATOR
+  LEGEND
+}
+
+enum VerificationTier {
+  PHONE
+  ID
+  COMMUNITY
+}
+
+enum POICategory {
+  TEA_SHOP
+  HOTEL
+  HOSTEL
+  RESTAURANT
+  HISTORIC
+  PETROL
+  ATM
+  PHARMACY
+  SCENIC
+  TRAILHEAD
+  WIFI_HOTSPOT
+  HOSPITAL
+  EMBASSY
+  RELIGIOUS
+}
+
+enum PartnerRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum TripMemberRole {
+  LEAD
+  MEMBER
+}
+
+enum TranslationMode {
+  CAMERA
+  VOICE
+  TEXT
+  PHRASEBOOK
+}
+
+enum AdvisoryLevel {
+  SAFE
+  CAUTION
+  AVOID_NON_ESSENTIAL
+  DO_NOT_TRAVEL
+}
+
+enum ExpenseCategory {
+  ACCOMMODATION
+  FOOD
+  TRANSPORT
+  ACTIVITIES
+  SHOPPING
+  EMERGENCY
+  OTHER
+}
+
+enum EventType {
+  FESTIVAL
+  CONCERT
+  SPORTS
+  FAIR
+  RELIGIOUS
+  WORKSHOP
+  LOCAL_EXPERIENCE
+}
+
+enum WaterSafety {
+  SAFE
+  BOIL
+  BOTTLED_ONLY
+}
+
+enum DietaryType {
+  VEGETARIAN
+  VEGAN
+  HALAL
+  KOSHER
+  GLUTEN_FREE
+  DAIRY_FREE
+}
+
+enum ContentType {
+  MAP
+  LANGUAGE_PACK
+  PHRASEBOOK
+  CULTURAL_GUIDE
+  POI_DATA
+}
+
+enum SplitType {
+  EQUAL
+  CUSTOM
+  PERCENTAGE
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MODELS
+// ═══════════════════════════════════════════════════════════════
+
+// ── 1. User ──────────────────────────────────────────────────
+
+model User {
+  id               String            @id @default(uuid()) @db.Uuid
+  email            String            @unique
+  password         String
+  name             String
+  phone            String?
+  avatar           String?
+  bio              String?
+  bannerImage      String?
+  verificationTier VerificationTier?
+  level            UserLevel         @default(WANDERER)
+  xp               Int               @default(0)
+  totalKm          Float             @default(0)
+  placesVisited    Int               @default(0)
+  tripsCompleted   Int               @default(0)
+  travelStreak     Int               @default(0)
+  role             String            @default("user")
+  refreshToken     String?
+  oauthProvider    String?
+  oauthId          String?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  // Relations
+  trips                Trip[]
+  notes                Note[]
+  badges               UserBadge[]
+  sentRequests         PartnerRequest[]   @relation("SentRequests")
+  receivedRequests     PartnerRequest[]   @relation("ReceivedRequests")
+  tripMembers          TripMember[]
+  emergencyContacts    EmergencyContact[]
+  expenses             Expense[]          @relation("UserExpenses")
+  paidExpenses         Expense[]          @relation("PaidByUser")
+  reviewsGiven         Review[]           @relation("ReviewsGiven")
+  reviewsReceived      Review[]           @relation("ReviewsReceived")
+  dietaryProfile       DietaryProfile?
+  accessibilityProfile AccessibilityProfile?
+  poiSubmissions       POI[]              @relation("POISubmissions")
+  poiRatings           POIRating[]
+  chatMessages         ChatMessage[]
+  chatRoomMembers      ChatRoomMember[]
+  sosAlerts            SOSAlert[]
+  vaccinations         Vaccination[]
+  travelInsurances     TravelInsurance[]
+  notifications        Notification[]
+  passportStamps       TripPassportStamp[]
+  expenseSplits        ExpenseSplit[]
+  wifiSubmissions      WifiHotspot[]
+  noteFolders          NoteFolder[]
+
+  @@index([email])
+  @@index([oauthProvider, oauthId])
+  @@index([level])
+  @@index([createdAt])
+}
+
+// ── 2. Trip ──────────────────────────────────────────────────
+
+model Trip {
+  id              String       @id @default(uuid()) @db.Uuid
+  userId          String       @db.Uuid
+  title           String
+  type            TravelerType
+  source          String
+  destination     String
+  sourceCoords    Json?
+  destCoords      Json?
+  status          TripStatus   @default(PLANNING)
+  routeMode       String?
+  vehicleType     VehicleType?
+  distanceKm      Float?
+  durationMin     Int?
+  carbonFootprint Float?
+  startedAt       DateTime?
+  endedAt         DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members   TripMember[]
+  routeLogs RouteLog[]
+  notes     Note[]
+  badges    UserBadge[]
+  expenses  Expense[]
+  budgets   TripBudget[]
+  geofences Geofence[]
+  reviews   Review[]
+  partnerRequests PartnerRequest[]
+  passportStamps  TripPassportStamp[]
+  chatRooms       ChatRoom[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId, status])
+}
+
+// ── 3. TripMember ────────────────────────────────────────────
+
+model TripMember {
+  id             String         @id @default(uuid()) @db.Uuid
+  tripId         String         @db.Uuid
+  userId         String         @db.Uuid
+  role           TripMemberRole @default(MEMBER)
+  joinedAt       DateTime       @default(now())
+  lastLocation   Json?
+  lastLocationAt DateTime?
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, userId])
+  @@index([tripId])
+  @@index([userId])
+}
+
+// ── 4. RouteLog ──────────────────────────────────────────────
+
+model RouteLog {
+  id           String      @id @default(uuid()) @db.Uuid
+  tripId       String      @db.Uuid
+  coordinates  Json        // Array of [lat, lng]
+  distanceKm   Float?
+  vehicleType  VehicleType?
+  speedData    Json?
+  altitudeData Json?
+  createdAt    DateTime    @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([createdAt])
+}
+
+// ── 5. Note ──────────────────────────────────────────────────
+
+model Note {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  tripId    String?  @db.Uuid
+  type      NoteType @default(TEXT)
+  title     String?
+  content   String?  @db.Text
+  audioUrl  String?
+  photoUrls Json?
+  geoPoint  Json?
+  tags      String[]
+  folderId  String?  @db.Uuid
+  isOffline Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip   Trip?       @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  folder NoteFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([tripId])
+  @@index([folderId])
+  @@index([createdAt])
+}
+
+// ── 6. NoteFolder ────────────────────────────────────────────
+
+model NoteFolder {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  name      String
+  tripId    String?  @db.Uuid
+  createdAt DateTime @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notes Note[]
+
+  @@index([userId])
+}
+
+// ── 7. Badge ─────────────────────────────────────────────────
+
+model Badge {
+  id             String      @id @default(uuid()) @db.Uuid
+  name           String      @unique
+  description    String
+  family         BadgeFamily
+  animationUrl   String?
+  iconUrl        String?
+  xpValue        Int         @default(0)
+  unlockCriteria Json?
+  tier           Int         @default(1)
+  createdAt      DateTime    @default(now())
+
+  userBadges UserBadge[]
+
+  @@index([family])
+}
+
+// ── 8. UserBadge ─────────────────────────────────────────────
+
+model UserBadge {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  badgeId    String   @db.Uuid
+  unlockedAt DateTime @default(now())
+  tripId     String?  @db.Uuid
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge Badge  @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  trip  Trip?  @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+}
+
+// ── 9. POI ───────────────────────────────────────────────────
+
+model POI {
+  id                   String      @id @default(uuid()) @db.Uuid
+  name                 String
+  category             POICategory
+  description          String?     @db.Text
+  latitude             Float
+  longitude            Float
+  rating               Float       @default(0)
+  totalRatings         Int         @default(0)
+  submittedById        String?     @db.Uuid
+  verified             Boolean     @default(false)
+  photos               Json?
+  amenities            String[]
+  openingHours         Json?
+  priceRange           String?
+  wheelchairAccessible Boolean     @default(false)
+  dietaryOptions       String[]
+  address              String?
+  city                 String?
+  country              String?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  submittedBy User?       @relation("POISubmissions", fields: [submittedById], references: [id], onDelete: SetNull)
+  ratings     POIRating[]
+
+  @@index([category])
+  @@index([country])
+  @@index([city])
+  @@index([latitude, longitude])
+  @@index([verified])
+}
+
+// ── 10. POIRating ────────────────────────────────────────────
+
+model POIRating {
+  id        String   @id @default(uuid()) @db.Uuid
+  poiId     String   @db.Uuid
+  userId    String   @db.Uuid
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  poi  POI  @relation(fields: [poiId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([poiId, userId])
+  @@index([poiId])
+  @@index([userId])
+}
+
+// ── 11. PartnerRequest ───────────────────────────────────────
+
+model PartnerRequest {
+  id         String               @id @default(uuid()) @db.Uuid
+  fromUserId String               @db.Uuid
+  toUserId   String               @db.Uuid
+  tripId     String?              @db.Uuid
+  status     PartnerRequestStatus @default(PENDING)
+  message    String?              @db.Text
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  fromUser User  @relation("SentRequests", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User  @relation("ReceivedRequests", fields: [toUserId], references: [id], onDelete: Cascade)
+  trip     Trip? @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([status])
+}
+
+// ── 12. Review ───────────────────────────────────────────────
+
+model Review {
+  id         String   @id @default(uuid()) @db.Uuid
+  fromUserId String   @db.Uuid
+  toUserId   String   @db.Uuid
+  tripId     String   @db.Uuid
+  rating     Int
+  comment    String?  @db.Text
+  createdAt  DateTime @default(now())
+
+  fromUser User @relation("ReviewsGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("ReviewsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+  trip     Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([tripId])
+}
+
+// ── 13. ChatRoom ─────────────────────────────────────────────
+
+model ChatRoom {
+  id        String   @id @default(uuid()) @db.Uuid
+  tripId    String?  @db.Uuid
+  name      String?
+  isGroup   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  trip     Trip?            @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  members  ChatRoomMember[]
+  messages ChatMessage[]
+
+  @@index([tripId])
+}
+
+// ── 14. ChatRoomMember ───────────────────────────────────────
+
+model ChatRoomMember {
+  id         String   @id @default(uuid()) @db.Uuid
+  chatRoomId String   @db.Uuid
+  userId     String   @db.Uuid
+  joinedAt   DateTime @default(now())
+
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([chatRoomId, userId])
+  @@index([chatRoomId])
+  @@index([userId])
+}
+
+// ── 15. ChatMessage ──────────────────────────────────────────
+
+model ChatMessage {
+  id          String   @id @default(uuid()) @db.Uuid
+  chatRoomId  String   @db.Uuid
+  senderId    String   @db.Uuid
+  content     String   @db.Text
+  type        String   @default("text")
+  mediaUrl    String?
+  isEncrypted Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  sender   User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([chatRoomId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+// ── 16. EmergencyContact ─────────────────────────────────────
+
+model EmergencyContact {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  name         String
+  phone        String
+  relationship String
+  isPrimary    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── 17. SOSAlert ─────────────────────────────────────────────
+
+model SOSAlert {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  latitude       Float
+  longitude      Float
+  nearestAddress String?
+  status         String    @default("active")
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ── 18. TravelAdvisory ───────────────────────────────────────
+
+model TravelAdvisory {
+  id          String        @id @default(uuid()) @db.Uuid
+  country     String        @unique
+  level       AdvisoryLevel
+  description String?       @db.Text
+  source      String?
+  updatedAt   DateTime      @updatedAt
+
+  @@index([level])
+}
+
+// ── 19. Embassy ──────────────────────────────────────────────
+
+model Embassy {
+  id             String   @id @default(uuid()) @db.Uuid
+  country        String
+  city           String
+  homeCountry    String
+  address        String
+  phone          String?
+  email          String?
+  operatingHours Json?
+  latitude       Float?
+  longitude      Float?
+  createdAt      DateTime @default(now())
+
+  @@index([country])
+  @@index([homeCountry])
+  @@index([city])
+}
+
+// ── 20. MedicalFacility ──────────────────────────────────────
+
+model MedicalFacility {
+  id                String   @id @default(uuid()) @db.Uuid
+  name              String
+  type              String
+  address           String
+  phone             String?
+  latitude          Float
+  longitude         Float
+  is24Hour          Boolean  @default(false)
+  englishSpeaking   Boolean  @default(false)
+  insuranceAccepted Boolean  @default(false)
+  country           String
+  city              String
+  createdAt         DateTime @default(now())
+
+  @@index([country])
+  @@index([city])
+  @@index([latitude, longitude])
+}
+
+// ── 21. Currency ─────────────────────────────────────────────
+
+model Currency {
+  id     String @id @default(uuid()) @db.Uuid
+  code   String @unique
+  name   String
+  symbol String
+  flag   String?
+}
+
+// ── 22. ExchangeRate ─────────────────────────────────────────
+
+model ExchangeRate {
+  id           String   @id @default(uuid()) @db.Uuid
+  fromCurrency String
+  toCurrency   String
+  rate         Float
+  timestamp    DateTime
+
+  @@index([fromCurrency, toCurrency])
+  @@index([timestamp])
+}
+
+// ── 23. TripBudget ───────────────────────────────────────────
+
+model TripBudget {
+  id          String   @id @default(uuid()) @db.Uuid
+  tripId      String   @db.Uuid
+  totalAmount Float
+  currency    String
+  createdAt   DateTime @default(now())
+
+  trip       Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  categories BudgetCategory[]
+
+  @@index([tripId])
+}
+
+// ── 24. BudgetCategory ───────────────────────────────────────
+
+model BudgetCategory {
+  id        String          @id @default(uuid()) @db.Uuid
+  budgetId  String          @db.Uuid
+  name      ExpenseCategory
+  allocated Float
+  spent     Float           @default(0)
+
+  budget TripBudget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([budgetId])
+}
+
+// ── 25. Expense ──────────────────────────────────────────────
+
+model Expense {
+  id           String          @id @default(uuid()) @db.Uuid
+  tripId       String          @db.Uuid
+  userId       String          @db.Uuid
+  amount       Float
+  currency     String
+  homeAmount   Float?
+  homeCurrency String?
+  category     ExpenseCategory
+  description  String?
+  receiptUrl   String?
+  merchantName String?
+  paidById     String?         @db.Uuid
+  splitType    SplitType?
+  createdAt    DateTime        @default(now())
+
+  trip   Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user   User          @relation("UserExpenses", fields: [userId], references: [id], onDelete: Cascade)
+  paidBy User?         @relation("PaidByUser", fields: [paidById], references: [id], onDelete: SetNull)
+  splits ExpenseSplit[]
+
+  @@index([tripId])
+  @@index([userId])
+  @@index([category])
+  @@index([createdAt])
+}
+
+// ── 26. ExpenseSplit ─────────────────────────────────────────
+
+model ExpenseSplit {
+  id        String  @id @default(uuid()) @db.Uuid
+  expenseId String  @db.Uuid
+  userId    String  @db.Uuid
+  amount    Float
+  settled   Boolean @default(false)
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId])
+  @@index([userId])
+}
+
+// ── 27. DietaryProfile ───────────────────────────────────────
+
+model DietaryProfile {
+  id               String  @id @default(uuid()) @db.Uuid
+  userId           String  @unique @db.Uuid
+  vegetarian       Boolean @default(false)
+  vegan            Boolean @default(false)
+  halal            Boolean @default(false)
+  kosher           Boolean @default(false)
+  glutenFree       Boolean @default(false)
+  dairyFree        Boolean @default(false)
+  nutAllergy       Boolean @default(false)
+  shellfishAllergy Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── 28. LocalDish ────────────────────────────────────────────
+
+model LocalDish {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  country       String
+  region        String?
+  description   String?  @db.Text
+  photo         String?
+  flavorProfile String[]
+  mustTryScore  Int?
+  averagePrice  Float?
+  currency      String?
+  createdAt     DateTime @default(now())
+
+  @@index([country])
+  @@index([region])
+}
+
+// ── 29. CultureCard ──────────────────────────────────────────
+
+model CultureCard {
+  id                 String   @id @default(uuid()) @db.Uuid
+  country            String   @unique
+  greetings          String?  @db.Text
+  tippingCulture     String?  @db.Text
+  dressCode          String?  @db.Text
+  punctuality        String?  @db.Text
+  giftGiving         String?  @db.Text
+  photographyRules   String?  @db.Text
+  pdaNorms           String?  @db.Text
+  bargainingCulture  String?  @db.Text
+  updatedAt          DateTime @updatedAt
+}
+
+// ── 30. ReligiousSiteEtiquette ───────────────────────────────
+
+model ReligiousSiteEtiquette {
+  id           String  @id @default(uuid()) @db.Uuid
+  siteType     String
+  country      String
+  footwear     String? @db.Text
+  headCovering String? @db.Text
+  silenceZones String? @db.Text
+  dressCode    String? @db.Text
+  otherRules   String? @db.Text
+
+  @@index([siteType])
+  @@index([country])
+}
+
+// ── 31. LiveEvent ────────────────────────────────────────────
+
+model LiveEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  type        EventType
+  description String?   @db.Text
+  location    String?
+  latitude    Float?
+  longitude   Float?
+  startDate   DateTime
+  endDate     DateTime?
+  ticketUrl   String?
+  photo       String?
+  country     String?
+  city        String?
+  createdAt   DateTime  @default(now())
+
+  @@index([type])
+  @@index([country])
+  @@index([startDate])
+  @@index([latitude, longitude])
+}
+
+// ── 32. WifiHotspot ──────────────────────────────────────────
+
+model WifiHotspot {
+  id                String   @id @default(uuid()) @db.Uuid
+  name              String
+  location          String?
+  latitude          Float
+  longitude         Float
+  password          String?
+  speedRating       Int?
+  reliabilityRating Int?
+  indoor            Boolean  @default(false)
+  verified          Boolean  @default(false)
+  submittedById     String?  @db.Uuid
+  createdAt         DateTime @default(now())
+
+  submittedBy User? @relation(fields: [submittedById], references: [id], onDelete: SetNull)
+
+  @@index([latitude, longitude])
+  @@index([verified])
+}
+
+// ── 33. SIMOption ────────────────────────────────────────────
+
+model SIMOption {
+  id           String   @id @default(uuid()) @db.Uuid
+  carrier      String
+  country      String
+  dataGB       Float
+  validityDays Int
+  price        Float
+  currency     String
+  esim         Boolean  @default(false)
+  purchaseUrl  String?
+  createdAt    DateTime @default(now())
+
+  @@index([country])
+}
+
+// ── 34. OfflineContent ───────────────────────────────────────
+
+model OfflineContent {
+  id          String      @id @default(uuid()) @db.Uuid
+  type        ContentType
+  region      String
+  sizeBytes   BigInt
+  downloadUrl String
+  version     String
+  lastUpdated DateTime    @updatedAt
+
+  @@index([type])
+  @@index([region])
+}
+
+// ── 35. AccessibilityProfile ─────────────────────────────────
+
+model AccessibilityProfile {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @unique @db.Uuid
+  wheelchairUser    Boolean  @default(false)
+  visualImpairment  Boolean  @default(false)
+  hearingImpairment Boolean  @default(false)
+  seniorMode        Boolean  @default(false)
+  medicalConditions String[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── 36. LanguagePack ─────────────────────────────────────────
+
+model LanguagePack {
+  id          String   @id @default(uuid()) @db.Uuid
+  langCode    String   @unique
+  name        String
+  sizeBytes   BigInt
+  downloadUrl String
+  version     String
+  lastUpdated DateTime @updatedAt
+}
+
+// ── 37. Phrase ───────────────────────────────────────────────
+
+model Phrase {
+  id              String   @id @default(uuid()) @db.Uuid
+  langCode        String
+  text            String
+  translation     String
+  transliteration String?
+  audioUrl        String?
+  category        String
+  createdAt       DateTime @default(now())
+
+  @@index([langCode])
+  @@index([category])
+}
+
+// ── 38. Vaccination ──────────────────────────────────────────
+
+model Vaccination {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  name           String
+  date           DateTime
+  brand          String?
+  nextBoosterDue DateTime?
+  certificate    String?
+  createdAt      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── 39. TravelInsurance ──────────────────────────────────────
+
+model TravelInsurance {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @db.Uuid
+  policyNumber     String
+  insurerName      String
+  emergencyHelpline String?
+  coverageStart    DateTime
+  coverageEnd      DateTime
+  coverageTypes    String[]
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([coverageEnd])
+}
+
+// ── 40. Notification ─────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  title     String
+  body      String   @db.Text
+  type      String
+  data      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([createdAt])
+}
+
+// ── 41. TripPassportStamp ────────────────────────────────────
+
+model TripPassportStamp {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  destination String
+  country     String?
+  artworkUrl  String?
+  stampedAt   DateTime @default(now())
+  tripId      String?  @db.Uuid
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trip Trip? @relation(fields: [tripId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, destination])
+  @@index([userId])
+  @@index([country])
+}
+
+// ── 42. Geofence ─────────────────────────────────────────────
+
+model Geofence {
+  id           String   @id @default(uuid()) @db.Uuid
+  tripId       String   @db.Uuid
+  name         String
+  latitude     Float
+  longitude    Float
+  radiusMeters Int
+  createdAt    DateTime @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([latitude, longitude])
+}
