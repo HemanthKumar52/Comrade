@@ -16,11 +16,18 @@
 | 6 | OSRM | **Required** | No | Yes (Public) |
 | 7 | Frankfurter API | **Required** | No | Yes (Public) |
 | 8 | CartoDB Basemaps | **Required** | No | Yes (Public) |
-| 9 | OpenWeatherMap | Optional | **Yes** | Yes (60 calls/min) |
-| 10 | Google OAuth | Optional | **Yes** | Yes |
-| 11 | Firebase FCM | Optional | **Yes** | Yes |
-| 12 | Mapbox | Optional | **Yes** | Yes (50k loads/mo) |
-| 13 | MapTiler | Optional | **Yes** | Yes (100k tiles/mo) |
+| 9 | **Open-Meteo** | **Required** | **No** | **Yes (Unlimited)** |
+| 10 | **RestCountries** | **Required** | **No** | **Yes (Unlimited)** |
+| 11 | **Nager.Date** | **Required** | **No** | **Yes (Unlimited)** |
+| 12 | **Overpass/OSM** | **Required** | **No** | **Yes (Fair use)** |
+| 13 | **Nominatim** | **Required** | **No** | **Yes (1 req/sec)** |
+| 14 | **USGS Earthquake** | **Required** | **No** | **Yes (Unlimited)** |
+| 15 | **WikiVoyage** | **Required** | **No** | **Yes (Unlimited)** |
+| 16 | OpenWeatherMap | Optional | **Yes** | Yes (60 calls/min) |
+| 17 | Google OAuth | Optional | **Yes** | Yes |
+| 18 | Firebase FCM | Optional | **Yes** | Yes |
+| 19 | Mapbox | Optional | **Yes** | Yes (50k loads/mo) |
+| 20 | MapTiler | Optional | **Yes** | Yes (100k tiles/mo) |
 
 ---
 

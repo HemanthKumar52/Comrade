@@ -67,6 +67,11 @@
 | `/cultural` | Cultural | Cultural guides & etiquette |
 | `/events` | Events | Festivals, concerts, local events |
 | `/weather` | Weather | Forecasts, alerts, best time to visit |
+| `/places` | Places Discovery | Explore nearby landmarks, hidden gems, free activities (OpenStreetMap) |
+| `/country-info` | Country Info | Country details, compare countries (RestCountries API) |
+| `/travel-guides` | Travel Guides | Community travel guides (WikiVoyage) |
+| `/holidays` | Holidays | Public holidays & long weekends by country (Nager.Date API) |
+| `/air-quality` | Air Quality | Real-time AQI and pollutant data (Open-Meteo) |
 
 ### Health & Safety
 | Route | Page | Description |
@@ -74,6 +79,7 @@
 | `/health` | Health | Vaccinations, insurance, pharmacies |
 | `/safety` | Safety | Safety scores (general, solo, LGBTQ+, night) |
 | `/emergency` | Emergency | SOS, emergency contacts, embassies |
+| `/disaster-alerts` | Disaster Alerts | Earthquakes, cyclones, floods, volcanoes (USGS/GDACS) |
 
 ### Sustainability & Info
 | Route | Page | Description |
@@ -388,6 +394,60 @@
 | `POST` | `/ai/travel-tips` | AI travel tips |
 | `GET` | `/ai/recommendations/:country` | See/do/eat/avoid |
 
+### Country Info (`/country-info`) — RestCountries API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/country-info/:code` | Full country info (flag, languages, currency, etc.) |
+| `GET` | `/country-info/search?q={query}` | Search countries by name |
+| `GET` | `/country-info/region/:region` | Countries by region |
+| `GET` | `/country-info/compare?countries=IN,JP,US` | Compare countries side-by-side |
+| `GET` | `/country-info/neighbors/:code` | Bordering countries with info |
+
+### Holidays (`/holidays`) — Nager.Date API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/holidays/:countryCode/:year` | Public holidays for country/year |
+| `GET` | `/holidays/upcoming/:countryCode` | Next upcoming holidays |
+| `GET` | `/holidays/today` | Worldwide holidays today |
+| `GET` | `/holidays/long-weekends/:countryCode/:year` | Long weekends for trip planning |
+| `GET` | `/holidays/check/:countryCode/:date` | Check if date is a holiday |
+
+### Places Discovery (`/places-discovery`) — OpenStreetMap Overpass API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/places-discovery/nearby?lat&lng&radius&category` | Discover nearby places |
+| `GET` | `/places-discovery/landmarks?lat&lng&radius` | Famous landmarks |
+| `GET` | `/places-discovery/hidden-gems?lat&lng` | Lesser-known attractions |
+| `GET` | `/places-discovery/photo-spots?lat&lng` | Scenic viewpoints |
+| `GET` | `/places-discovery/free-activities?lat&lng` | Free things to do |
+| `GET` | `/places-discovery/categories` | List searchable categories |
+
+### Disaster Alerts (`/disaster-alerts`) — USGS Earthquake API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/disaster-alerts/earthquakes?days=7&minMagnitude=4` | Recent earthquakes |
+| `GET` | `/disaster-alerts/near?lat&lng&radius` | Disasters near location |
+| `GET` | `/disaster-alerts/country/:countryCode` | Active alerts for country |
+| `GET` | `/disaster-alerts/active` | All active disaster alerts |
+| `GET` | `/disaster-alerts/safety-check/:tripId` | Check trip destination alerts |
+
+### Geocoding (`/geocoding`) — Nominatim OpenStreetMap
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/geocoding/search?q={query}&limit=5` | Search places (forward geocoding) |
+| `GET` | `/geocoding/reverse?lat&lng` | Address from coordinates |
+| `GET` | `/geocoding/autocomplete?q={partial}` | Place autocomplete |
+| `GET` | `/geocoding/timezone?lat&lng` | Timezone for coordinates |
+
+### Travel Guides (`/travel-guides`) — WikiVoyage API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/travel-guides/:destination` | Full travel guide |
+| `GET` | `/travel-guides/:destination/summary` | Brief overview |
+| `GET` | `/travel-guides/:destination/sections` | List of guide sections |
+| `GET` | `/travel-guides/search?q={query}` | Search WikiVoyage guides |
+| `GET` | `/travel-guides/nearby?lat&lng` | Guides for nearby destinations |
+
 ---
 
 ## 3. WebSocket Events
@@ -497,4 +557,4 @@ Partner App
 
 ---
 
-**Total: 39 Pages | 130+ API Endpoints | 10 WebSocket Events**
+**Total: 45 Pages | 170+ API Endpoints | 10 WebSocket Events | 8 Free API Integrations**
