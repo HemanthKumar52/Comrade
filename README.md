@@ -431,6 +431,12 @@ The database uses **PostgreSQL 16 with PostGIS** for geospatial queries, managed
 | **Travel Kit** | `/travel-kit` | Visa, plugs, timezone, laws, jet lag |
 | **AI** | `/ai` | Trip narratives, mood routes, tips |
 | **Notifications** | `/notifications` | List, mark read, unread count |
+| **Country Info** | `/country-info` | Country details, compare (RestCountries) |
+| **Holidays** | `/holidays` | Public holidays, long weekends (Nager.Date) |
+| **Places Discovery** | `/places-discovery` | Nearby POIs, landmarks (OpenStreetMap) |
+| **Disaster Alerts** | `/disaster-alerts` | Earthquakes, natural disasters (USGS) |
+| **Geocoding** | `/geocoding` | Search places, reverse geocoding (Nominatim) |
+| **Travel Guides** | `/travel-guides` | Destination guides (WikiVoyage) |
 
 ---
 
@@ -493,6 +499,13 @@ docker compose logs -f
 | **OSRM** | Route calculation & directions | `router.project-osrm.org` |
 | **Frankfurter** | Currency exchange rates | `api.frankfurter.app` |
 | **CartoDB** | Map tile basemaps | `basemaps.cartocdn.com` |
+| **Open-Meteo** | Weather, forecasts, air quality | `api.open-meteo.com` |
+| **RestCountries** | Country data (flags, languages, etc.) | `restcountries.com` |
+| **Nager.Date** | Public holidays & long weekends | `date.nager.at` |
+| **Overpass/OSM** | POI discovery from OpenStreetMap | `overpass-api.de` |
+| **Nominatim** | Geocoding & place search | `nominatim.openstreetmap.org` |
+| **USGS Earthquake** | Real-time earthquake data | `earthquake.usgs.gov` |
+| **WikiVoyage** | Community travel guides | `en.wikivoyage.org` |
 
 ### Optional (API Key Required)
 

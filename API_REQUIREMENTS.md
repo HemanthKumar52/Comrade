@@ -138,6 +138,75 @@ These run locally via `docker compose up -d`.
 
 ---
 
+## 2.5 New Free APIs (No Key Required)
+
+### 2.4 Open-Meteo (Weather & Air Quality)
+- **Purpose:** Real-time weather, forecasts, and air quality data
+- **URL:** `https://api.open-meteo.com/v1/forecast`
+- **Air Quality:** `https://air-quality-api.open-meteo.com/v1/air-quality`
+- **Used By:** Weather module, Air Quality page
+- **Rate Limit:** Unlimited (open-source, self-hostable)
+- **Replaces:** OpenWeatherMap (now optional)
+- **Features:** Current weather, 7-day forecast, AQI, PM2.5, PM10, ozone, UV index
+- **No configuration needed** — works out of the box
+
+### 2.5 RestCountries API
+- **Purpose:** Comprehensive country data (flags, languages, currencies, borders)
+- **URL:** `https://restcountries.com/v3.1/`
+- **Used By:** Country Info module
+- **Rate Limit:** Unlimited
+- **Endpoints:**
+  - `/alpha/{code}` — Country by code
+  - `/name/{name}` — Search by name
+  - `/region/{region}` — Countries by region
+- **No configuration needed**
+
+### 2.6 Nager.Date (Public Holidays)
+- **Purpose:** Public holidays, long weekends by country
+- **URL:** `https://date.nager.at/api/v3/`
+- **Used By:** Holidays module, Trip Planning
+- **Rate Limit:** Unlimited
+- **Endpoints:**
+  - `/PublicHolidays/{year}/{countryCode}` — Yearly holidays
+  - `/NextPublicHolidays/{countryCode}` — Upcoming holidays
+  - `/LongWeekend/{year}/{countryCode}` — Long weekends
+- **No configuration needed**
+
+### 2.7 Overpass API (OpenStreetMap Places)
+- **Purpose:** Discover POIs, landmarks, hidden gems from OpenStreetMap
+- **URL:** `https://overpass-api.de/api/interpreter`
+- **Used By:** Places Discovery module
+- **Rate Limit:** Fair use (~10,000 requests/day)
+- **Self-Host Option:** Can run own Overpass instance
+- **No configuration needed**
+
+### 2.8 Nominatim (Geocoding)
+- **Purpose:** Forward/reverse geocoding, place search
+- **URL:** `https://nominatim.openstreetmap.org/`
+- **Used By:** Geocoding module, Search bars
+- **Rate Limit:** 1 request/second (fair use)
+- **Important:** Requires User-Agent header
+- **Self-Host Option:** Can run own Nominatim instance
+- **No configuration needed**
+
+### 2.9 USGS Earthquake API
+- **Purpose:** Real-time earthquake and seismic data worldwide
+- **URL:** `https://earthquake.usgs.gov/fdsnws/event/1/query`
+- **Used By:** Disaster Alerts module
+- **Rate Limit:** Unlimited
+- **Features:** Magnitude, location, depth, tsunami warnings
+- **No configuration needed**
+
+### 2.10 WikiVoyage API
+- **Purpose:** Community-written travel guides for destinations worldwide
+- **URL:** `https://en.wikivoyage.org/w/api.php`
+- **Used By:** Travel Guides module
+- **Rate Limit:** Unlimited
+- **Features:** Full destination guides with sections (See, Do, Eat, Sleep, etc.)
+- **No configuration needed**
+
+---
+
 ## 3. External APIs (Key Required)
 
 ### 3.1 OpenWeatherMap API
@@ -398,3 +467,10 @@ Before deploying to production, ensure:
 | **Carbon** | Calculated internally |
 | **Badges/XP** | Calculated internally |
 | **AI Features** | Built-in logic (no external LLM yet) |
+| **Country Info** | RestCountries API (free, unlimited) |
+| **Public Holidays** | Nager.Date API (free, unlimited) |
+| **Places Discovery** | Overpass/OSM API (free, fair use) |
+| **Disaster Alerts** | USGS Earthquake API (free, unlimited) |
+| **Geocoding** | Nominatim/OSM (free, 1 req/sec) |
+| **Travel Guides** | WikiVoyage API (free, unlimited) |
+| **Air Quality** | Open-Meteo Air Quality (free, unlimited) |
