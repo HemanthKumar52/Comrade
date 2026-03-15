@@ -24,10 +24,10 @@ export class WeatherController {
   constructor(private readonly weatherService: WeatherService) {}
 
   @Get('current')
-  @ApiOperation({ summary: 'Get current weather for coordinates' })
+  @ApiOperation({ summary: 'Get current weather for coordinates (Open-Meteo)' })
   @ApiQuery({ name: 'lat', required: true, type: Number, description: 'Latitude' })
   @ApiQuery({ name: 'lng', required: true, type: Number, description: 'Longitude' })
-  @ApiResponse({ status: 200, description: 'Current weather data' })
+  @ApiResponse({ status: 200, description: 'Current weather data from Open-Meteo' })
   async getCurrentWeather(
     @Query('lat') lat: string,
     @Query('lng') lng: string,
@@ -36,11 +36,11 @@ export class WeatherController {
   }
 
   @Get('forecast')
-  @ApiOperation({ summary: 'Get weather forecast for coordinates' })
+  @ApiOperation({ summary: 'Get multi-day weather forecast (Open-Meteo)' })
   @ApiQuery({ name: 'lat', required: true, type: Number, description: 'Latitude' })
   @ApiQuery({ name: 'lng', required: true, type: Number, description: 'Longitude' })
-  @ApiQuery({ name: 'days', required: false, type: Number, description: 'Number of forecast days (default 5)' })
-  @ApiResponse({ status: 200, description: 'Weather forecast data' })
+  @ApiQuery({ name: 'days', required: false, type: Number, description: 'Number of forecast days (1-16, default 7)' })
+  @ApiResponse({ status: 200, description: 'Multi-day weather forecast data' })
   async getForecast(
     @Query('lat') lat: string,
     @Query('lng') lng: string,
@@ -49,15 +49,27 @@ export class WeatherController {
     return this.weatherService.getForecast(
       parseFloat(lat),
       parseFloat(lng),
-      days ? parseInt(days, 10) : 5,
+      days ? parseInt(days, 10) : 7,
     );
   }
 
-  @Get('alerts')
-  @ApiOperation({ summary: 'Get weather alerts for coordinates' })
+  @Get('air-quality')
+  @ApiOperation({ summary: 'Get air quality index for coordinates (Open-Meteo)' })
   @ApiQuery({ name: 'lat', required: true, type: Number, description: 'Latitude' })
   @ApiQuery({ name: 'lng', required: true, type: Number, description: 'Longitude' })
-  @ApiResponse({ status: 200, description: 'Active weather alerts' })
+  @ApiResponse({ status: 200, description: 'Air quality data with US AQI and pollutant levels' })
+  async getAirQuality(
+    @Query('lat') lat: string,
+    @Query('lng') lng: string,
+  ) {
+    return this.weatherService.getAirQuality(parseFloat(lat), parseFloat(lng));
+  }
+
+  @Get('alerts')
+  @ApiOperation({ summary: 'Get weather alerts for coordinates (derived from current conditions)' })
+  @ApiQuery({ name: 'lat', required: true, type: Number, description: 'Latitude' })
+  @ApiQuery({ name: 'lng', required: true, type: Number, description: 'Longitude' })
+  @ApiResponse({ status: 200, description: 'Active weather alerts derived from Open-Meteo data' })
   async getAlerts(
     @Query('lat') lat: string,
     @Query('lng') lng: string,

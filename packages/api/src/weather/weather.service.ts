@@ -1,9 +1,59 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 
 interface CacheEntry {
   data: any;
   timestamp: number;
+}
+
+/** WMO Weather interpretation codes (WW) used by Open-Meteo */
+const WMO_CODES: Record<number, { description: string; icon: string }> = {
+  0: { description: 'Clear sky', icon: 'clear' },
+  1: { description: 'Mainly clear', icon: 'mostly-clear' },
+  2: { description: 'Partly cloudy', icon: 'partly-cloudy' },
+  3: { description: 'Overcast', icon: 'cloudy' },
+  45: { description: 'Fog', icon: 'fog' },
+  48: { description: 'Depositing rime fog', icon: 'fog' },
+  51: { description: 'Light drizzle', icon: 'drizzle' },
+  53: { description: 'Moderate drizzle', icon: 'drizzle' },
+  55: { description: 'Dense drizzle', icon: 'drizzle' },
+  56: { description: 'Light freezing drizzle', icon: 'freezing-drizzle' },
+  57: { description: 'Dense freezing drizzle', icon: 'freezing-drizzle' },
+  61: { description: 'Slight rain', icon: 'rain-light' },
+  63: { description: 'Moderate rain', icon: 'rain' },
+  65: { description: 'Heavy rain', icon: 'rain-heavy' },
+  66: { description: 'Light freezing rain', icon: 'freezing-rain' },
+  67: { description: 'Heavy freezing rain', icon: 'freezing-rain' },
+  71: { description: 'Slight snowfall', icon: 'snow-light' },
+  73: { description: 'Moderate snowfall', icon: 'snow' },
+  75: { description: 'Heavy snowfall', icon: 'snow-heavy' },
+  77: { description: 'Snow grains', icon: 'snow' },
+  80: { description: 'Slight rain showers', icon: 'rain-light' },
+  81: { description: 'Moderate rain showers', icon: 'rain' },
+  82: { description: 'Violent rain showers', icon: 'rain-heavy' },
+  85: { description: 'Slight snow showers', icon: 'snow-light' },
+  86: { description: 'Heavy snow showers', icon: 'snow-heavy' },
+  95: { description: 'Thunderstorm', icon: 'thunderstorm' },
+  96: { description: 'Thunderstorm with slight hail', icon: 'thunderstorm-hail' },
+  99: { description: 'Thunderstorm with heavy hail', icon: 'thunderstorm-hail' },
+};
+
+/** US AQI breakpoint labels */
+function getAqiLabel(aqi: number): string {
+  if (aqi <= 50) return 'Good';
+  if (aqi <= 100) return 'Moderate';
+  if (aqi <= 150) return 'Unhealthy for Sensitive Groups';
+  if (aqi <= 200) return 'Unhealthy';
+  if (aqi <= 300) return 'Very Unhealthy';
+  return 'Hazardous';
+}
+
+function getAqiColor(aqi: number): string {
+  if (aqi <= 50) return '#00E400';
+  if (aqi <= 100) return '#FFFF00';
+  if (aqi <= 150) return '#FF7E00';
+  if (aqi <= 200) return '#FF0000';
+  if (aqi <= 300) return '#8F3F97';
+  return '#7E0023';
 }
 
 @Injectable()
@@ -11,14 +61,13 @@ export class WeatherService {
   private readonly logger = new Logger(WeatherService.name);
   private readonly cache = new Map<string, CacheEntry>();
   private readonly CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-  private readonly apiKey: string | undefined;
 
-  constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('OPENWEATHERMAP_API_KEY');
-    if (!this.apiKey) {
-      this.logger.warn('OPENWEATHERMAP_API_KEY not set. Weather API calls will return fallback data.');
-    }
-  }
+  private readonly FORECAST_BASE =
+    'https://api.open-meteo.com/v1/forecast';
+  private readonly AIR_QUALITY_BASE =
+    'https://air-quality-api.open-meteo.com/v1/air-quality';
+
+  // --------------- cache helpers ---------------
 
   private getCached(key: string): any | null {
     const entry = this.cache.get(key);
@@ -33,85 +82,116 @@ export class WeatherService {
     this.cache.set(key, { data, timestamp: Date.now() });
   }
 
+  // --------------- Open-Meteo: current weather ---------------
+
   async getCurrentWeather(lat: number, lng: number) {
     const cacheKey = `current:${lat}:${lng}`;
     const cached = this.getCached(cacheKey);
     if (cached) return cached;
 
-    if (!this.apiKey) {
-      return this.getFallbackCurrentWeather(lat, lng);
-    }
-
     try {
-      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lng}&appid=${this.apiKey}&units=metric`;
+      const url =
+        `${this.FORECAST_BASE}?latitude=${lat}&longitude=${lng}` +
+        `&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,uv_index` +
+        `&daily=sunrise,sunset` +
+        `&timezone=auto&forecast_days=1`;
+
       const response = await fetch(url);
-      if (!response.ok) throw new Error(`API returned ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Open-Meteo API returned ${response.status}`);
+      }
       const data = await response.json();
+      const current = data.current;
+      const daily = data.daily;
+      const wmo = WMO_CODES[current.weather_code] ?? {
+        description: 'Unknown',
+        icon: 'unknown',
+      };
 
       const result = {
-        location: data.name,
-        temperature: data.main.temp,
-        feelsLike: data.main.feels_like,
-        humidity: data.main.humidity,
-        description: data.weather?.[0]?.description,
-        icon: data.weather?.[0]?.icon,
-        windSpeed: data.wind?.speed,
-        windDirection: data.wind?.deg,
-        visibility: data.visibility,
-        pressure: data.main.pressure,
-        clouds: data.clouds?.all,
-        sunrise: data.sys?.sunrise ? new Date(data.sys.sunrise * 1000).toISOString() : null,
-        sunset: data.sys?.sunset ? new Date(data.sys.sunset * 1000).toISOString() : null,
+        source: 'open-meteo',
+        coordinates: { lat, lng },
+        timezone: data.timezone,
+        temperature: current.temperature_2m,
+        feelsLike: current.apparent_temperature,
+        humidity: current.relative_humidity_2m,
+        precipitation: current.precipitation,
+        weatherCode: current.weather_code,
+        description: wmo.description,
+        icon: wmo.icon,
+        windSpeed: current.wind_speed_10m,
+        windDirection: current.wind_direction_10m,
+        uvIndex: current.uv_index,
+        sunrise: daily?.sunrise?.[0] ?? null,
+        sunset: daily?.sunset?.[0] ?? null,
+        units: {
+          temperature: data.current_units?.temperature_2m ?? '°C',
+          windSpeed: data.current_units?.wind_speed_10m ?? 'km/h',
+          precipitation: data.current_units?.precipitation ?? 'mm',
+        },
+        retrievedAt: new Date().toISOString(),
       };
 
       this.setCache(cacheKey, result);
       return result;
     } catch (error) {
-      this.logger.error(`Failed to fetch weather: ${error.message}`);
+      this.logger.error(`Failed to fetch current weather: ${error.message}`);
       return this.getFallbackCurrentWeather(lat, lng);
     }
   }
 
-  async getForecast(lat: number, lng: number, days: number = 5) {
-    const cacheKey = `forecast:${lat}:${lng}:${days}`;
+  // --------------- Open-Meteo: multi-day forecast ---------------
+
+  async getForecast(lat: number, lng: number, days: number = 7) {
+    // Open-Meteo supports up to 16 days
+    const clampedDays = Math.min(Math.max(days, 1), 16);
+    const cacheKey = `forecast:${lat}:${lng}:${clampedDays}`;
     const cached = this.getCached(cacheKey);
     if (cached) return cached;
 
-    if (!this.apiKey) {
-      return this.getFallbackForecast(days);
-    }
-
     try {
-      const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lng}&appid=${this.apiKey}&units=metric`;
+      const url =
+        `${this.FORECAST_BASE}?latitude=${lat}&longitude=${lng}` +
+        `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,sunrise,sunset` +
+        `&timezone=auto&forecast_days=${clampedDays}`;
+
       const response = await fetch(url);
-      if (!response.ok) throw new Error(`API returned ${response.status}`);
-      const data = await response.json();
-
-      const grouped: Record<string, any[]> = {};
-      for (const item of data.list || []) {
-        const date = item.dt_txt.split(' ')[0];
-        if (!grouped[date]) grouped[date] = [];
-        grouped[date].push({
-          time: item.dt_txt,
-          temp: item.main.temp,
-          feelsLike: item.main.feels_like,
-          humidity: item.main.humidity,
-          description: item.weather?.[0]?.description,
-          icon: item.weather?.[0]?.icon,
-          windSpeed: item.wind?.speed,
-          pop: item.pop,
-        });
+      if (!response.ok) {
+        throw new Error(`Open-Meteo API returned ${response.status}`);
       }
+      const data = await response.json();
+      const daily = data.daily;
 
-      const result = Object.entries(grouped)
-        .slice(0, days)
-        .map(([date, entries]) => ({
+      const forecast = (daily.time as string[]).map((date: string, i: number) => {
+        const wmo = WMO_CODES[daily.weather_code[i]] ?? {
+          description: 'Unknown',
+          icon: 'unknown',
+        };
+        return {
           date,
-          tempMin: Math.min(...entries.map((e) => e.temp)),
-          tempMax: Math.max(...entries.map((e) => e.temp)),
-          avgHumidity: Math.round(entries.reduce((s, e) => s + e.humidity, 0) / entries.length),
-          entries,
-        }));
+          tempMax: daily.temperature_2m_max[i],
+          tempMin: daily.temperature_2m_min[i],
+          precipitationSum: daily.precipitation_sum[i],
+          weatherCode: daily.weather_code[i],
+          description: wmo.description,
+          icon: wmo.icon,
+          sunrise: daily.sunrise[i],
+          sunset: daily.sunset[i],
+        };
+      });
+
+      const result = {
+        source: 'open-meteo',
+        coordinates: { lat, lng },
+        timezone: data.timezone,
+        units: {
+          temperature: data.daily_units?.temperature_2m_max ?? '°C',
+          precipitation: data.daily_units?.precipitation_sum ?? 'mm',
+        },
+        days: clampedDays,
+        forecast,
+        retrievedAt: new Date().toISOString(),
+      };
 
       this.setCache(cacheKey, result);
       return result;
@@ -121,38 +201,136 @@ export class WeatherService {
     }
   }
 
-  async getAlerts(lat: number, lng: number) {
-    if (!this.apiKey) {
-      return { alerts: [], message: 'No API key configured. Unable to fetch real-time alerts.' };
-    }
+  // --------------- Open-Meteo: air quality ---------------
 
-    const cacheKey = `alerts:${lat}:${lng}`;
+  async getAirQuality(lat: number, lng: number) {
+    const cacheKey = `air-quality:${lat}:${lng}`;
     const cached = this.getCached(cacheKey);
     if (cached) return cached;
 
     try {
-      const url = `https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lng}&appid=${this.apiKey}&units=metric&exclude=minutely,hourly,daily`;
+      const url =
+        `${this.AIR_QUALITY_BASE}?latitude=${lat}&longitude=${lng}` +
+        `&current=pm2_5,pm10,us_aqi,carbon_monoxide,nitrogen_dioxide,ozone` +
+        `&timezone=auto`;
+
       const response = await fetch(url);
-      if (!response.ok) throw new Error(`API returned ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Open-Meteo Air Quality API returned ${response.status}`);
+      }
       const data = await response.json();
+      const current = data.current;
+      const aqi = current.us_aqi;
 
       const result = {
-        alerts: (data.alerts || []).map((a: any) => ({
-          event: a.event,
-          sender: a.sender_name,
-          start: new Date(a.start * 1000).toISOString(),
-          end: new Date(a.end * 1000).toISOString(),
-          description: a.description,
-        })),
+        source: 'open-meteo',
+        coordinates: { lat, lng },
+        timezone: data.timezone,
+        aqi: {
+          value: aqi,
+          label: aqi != null ? getAqiLabel(aqi) : 'Unknown',
+          color: aqi != null ? getAqiColor(aqi) : '#999999',
+        },
+        pollutants: {
+          pm2_5: { value: current.pm2_5, unit: data.current_units?.pm2_5 ?? 'μg/m³' },
+          pm10: { value: current.pm10, unit: data.current_units?.pm10 ?? 'μg/m³' },
+          carbonMonoxide: { value: current.carbon_monoxide, unit: data.current_units?.carbon_monoxide ?? 'μg/m³' },
+          nitrogenDioxide: { value: current.nitrogen_dioxide, unit: data.current_units?.nitrogen_dioxide ?? 'μg/m³' },
+          ozone: { value: current.ozone, unit: data.current_units?.ozone ?? 'μg/m³' },
+        },
+        retrievedAt: new Date().toISOString(),
+      };
+
+      this.setCache(cacheKey, result);
+      return result;
+    } catch (error) {
+      this.logger.error(`Failed to fetch air quality: ${error.message}`);
+      return {
+        coordinates: { lat, lng },
+        aqi: { value: null, label: 'Unavailable', color: '#999999' },
+        pollutants: {},
+        error: 'Unable to fetch air quality data at this time.',
+      };
+    }
+  }
+
+  // --------------- Alerts (best-effort from forecast data) ---------------
+
+  async getAlerts(lat: number, lng: number) {
+    const cacheKey = `alerts:${lat}:${lng}`;
+    const cached = this.getCached(cacheKey);
+    if (cached) return cached;
+
+    // Open-Meteo does not provide a dedicated alerts endpoint.
+    // We derive simple warnings from current conditions.
+    try {
+      const url =
+        `${this.FORECAST_BASE}?latitude=${lat}&longitude=${lng}` +
+        `&current=temperature_2m,precipitation,weather_code,wind_speed_10m,uv_index` +
+        `&timezone=auto`;
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Open-Meteo API returned ${response.status}`);
+      }
+      const data = await response.json();
+      const c = data.current;
+      const alerts: Array<{ type: string; severity: string; message: string }> = [];
+
+      if (c.temperature_2m != null && c.temperature_2m >= 40) {
+        alerts.push({ type: 'extreme-heat', severity: 'warning', message: `Extreme heat: ${c.temperature_2m}°C. Stay hydrated and avoid prolonged sun exposure.` });
+      } else if (c.temperature_2m != null && c.temperature_2m >= 35) {
+        alerts.push({ type: 'heat', severity: 'advisory', message: `High temperature: ${c.temperature_2m}°C. Take precautions against heat.` });
+      }
+
+      if (c.temperature_2m != null && c.temperature_2m <= -15) {
+        alerts.push({ type: 'extreme-cold', severity: 'warning', message: `Extreme cold: ${c.temperature_2m}°C. Risk of frostbite and hypothermia.` });
+      } else if (c.temperature_2m != null && c.temperature_2m <= -5) {
+        alerts.push({ type: 'cold', severity: 'advisory', message: `Very cold: ${c.temperature_2m}°C. Dress warmly and limit outdoor exposure.` });
+      }
+
+      if (c.wind_speed_10m != null && c.wind_speed_10m >= 80) {
+        alerts.push({ type: 'storm-wind', severity: 'warning', message: `Storm-force winds: ${c.wind_speed_10m} km/h. Seek shelter immediately.` });
+      } else if (c.wind_speed_10m != null && c.wind_speed_10m >= 50) {
+        alerts.push({ type: 'high-wind', severity: 'advisory', message: `High winds: ${c.wind_speed_10m} km/h. Secure loose objects.` });
+      }
+
+      if (c.precipitation != null && c.precipitation >= 10) {
+        alerts.push({ type: 'heavy-precipitation', severity: 'advisory', message: `Heavy precipitation: ${c.precipitation} mm. Watch for flooding.` });
+      }
+
+      if (c.uv_index != null && c.uv_index >= 11) {
+        alerts.push({ type: 'extreme-uv', severity: 'warning', message: `Extreme UV index: ${c.uv_index}. Avoid sun exposure.` });
+      } else if (c.uv_index != null && c.uv_index >= 8) {
+        alerts.push({ type: 'high-uv', severity: 'advisory', message: `Very high UV index: ${c.uv_index}. Use sunscreen and seek shade.` });
+      }
+
+      if ([95, 96, 99].includes(c.weather_code)) {
+        alerts.push({ type: 'thunderstorm', severity: 'warning', message: 'Thunderstorm activity detected. Stay indoors if possible.' });
+      }
+
+      const result = {
+        source: 'open-meteo',
+        coordinates: { lat, lng },
+        alerts,
+        alertCount: alerts.length,
+        note: 'Alerts are derived from current conditions. For official severe weather warnings, consult local meteorological services.',
+        retrievedAt: new Date().toISOString(),
       };
 
       this.setCache(cacheKey, result);
       return result;
     } catch (error) {
       this.logger.error(`Failed to fetch alerts: ${error.message}`);
-      return { alerts: [], message: 'Unable to fetch alerts at this time.' };
+      return {
+        alerts: [],
+        alertCount: 0,
+        error: 'Unable to fetch weather alerts at this time.',
+      };
     }
   }
+
+  // --------------- Static data: best time to visit ---------------
 
   getBestTimeToVisit(country: string) {
     const code = country.toUpperCase();
@@ -163,6 +341,8 @@ export class WeatherService {
     return data;
   }
 
+  // --------------- Static data: climate ---------------
+
   getClimate(country: string) {
     const code = country.toUpperCase();
     const data = CLIMATE_DATA[code];
@@ -172,34 +352,43 @@ export class WeatherService {
     return data;
   }
 
+  // --------------- Fallbacks ---------------
+
   private getFallbackCurrentWeather(lat: number, lng: number) {
     return {
-      location: 'Unknown',
+      source: 'fallback',
+      coordinates: { lat, lng },
       temperature: null,
       feelsLike: null,
       humidity: null,
-      description: 'Weather data unavailable (no API key)',
+      description: 'Weather data temporarily unavailable',
       icon: null,
       windSpeed: null,
-      note: 'Set OPENWEATHERMAP_API_KEY environment variable for live data',
-      coordinates: { lat, lng },
+      note: 'Open-Meteo API is unreachable. Please try again later.',
     };
   }
 
   private getFallbackForecast(days: number) {
-    return Array.from({ length: days }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() + i);
-      return {
-        date: date.toISOString().split('T')[0],
-        tempMin: null,
-        tempMax: null,
-        avgHumidity: null,
-        note: 'Forecast unavailable (no API key)',
-      };
-    });
+    return {
+      source: 'fallback',
+      days,
+      forecast: Array.from({ length: days }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() + i);
+        return {
+          date: date.toISOString().split('T')[0],
+          tempMin: null,
+          tempMax: null,
+          precipitationSum: null,
+          note: 'Forecast data temporarily unavailable',
+        };
+      }),
+      note: 'Open-Meteo API is unreachable. Please try again later.',
+    };
   }
 }
+
+// --------------- Static datasets ---------------
 
 const BEST_TIME_DATA: Record<string, any> = {
   IN: { country: 'India', bestMonths: ['October', 'November', 'December', 'January', 'February', 'March'], worstMonths: ['June', 'July', 'August'], peakSeason: 'November-February', shoulder: 'March, September-October', summary: 'Winter (Oct-Mar) is best for most regions. Monsoon (Jun-Sep) brings heavy rain but is great for Kerala and Northeast. Summer (Apr-Jun) is ideal for hill stations.', regions: { north: 'Oct-Mar (cold winters, hot summers)', south: 'Nov-Feb (cooler, less humid)', rajasthan: 'Oct-Mar (avoid scorching summers)', himalayan: 'Apr-Jun, Sep-Oct (clear skies, trekking)' } },
