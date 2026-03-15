@@ -141,6 +141,18 @@
 | **Offline Content** | Downloadable maps and guides | Done |
 | **Traffic Rules** | Driving side, speed limits, license requirements | Done |
 
+### New Integrations (Free Open-Source APIs)
+| Feature | Description | API Source |
+|---------|-------------|------------|
+| **Live Weather** | Real-time weather + 7-day forecast, no API key needed | Open-Meteo |
+| **Air Quality** | AQI, PM2.5, PM10, ozone monitoring worldwide | Open-Meteo Air Quality |
+| **Country Explorer** | Flags, languages, currencies, borders for 250+ countries | RestCountries |
+| **Public Holidays** | Holidays & long weekends for trip planning | Nager.Date |
+| **Places Discovery** | Landmarks, hidden gems, free activities from OpenStreetMap | Overpass API |
+| **Geocoding** | Place search & reverse geocoding | Nominatim/OSM |
+| **Disaster Alerts** | Real-time earthquakes & natural disaster warnings | USGS Earthquake |
+| **Travel Guides** | Community-written destination guides | WikiVoyage |
+
 ### AI Features
 | Feature | Description | Status |
 |---------|-------------|--------|

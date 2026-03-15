@@ -36,6 +36,10 @@ import { TravelPhrasesModule } from './travel-phrases/travel-phrases.module';
 import { TravelStatsModule } from './travel-stats/travel-stats.module';
 import { CountryInfoModule } from './country-info/country-info.module';
 import { HolidaysModule } from './holidays/holidays.module';
+import { PlacesDiscoveryModule } from './places-discovery/places-discovery.module';
+import { DisasterAlertsModule } from './disaster-alerts/disaster-alerts.module';
+import { GeocodingModule } from './geocoding/geocoding.module';
+import { TravelGuidesModule } from './travel-guides/travel-guides.module';
 
 @Module({
   imports: [
@@ -83,6 +87,10 @@ import { HolidaysModule } from './holidays/holidays.module';
     TravelStatsModule,
     CountryInfoModule,
     HolidaysModule,
+    PlacesDiscoveryModule,
+    DisasterAlertsModule,
+    GeocodingModule,
+    TravelGuidesModule,
   ],
 })
 export class AppModule {}
