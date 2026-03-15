@@ -34,6 +34,8 @@ import { AiModule } from './ai/ai.module';
 import { TrafficModule } from './traffic/traffic.module';
 import { TravelPhrasesModule } from './travel-phrases/travel-phrases.module';
 import { TravelStatsModule } from './travel-stats/travel-stats.module';
+import { CountryInfoModule } from './country-info/country-info.module';
+import { HolidaysModule } from './holidays/holidays.module';
 
 @Module({
   imports: [
@@ -79,6 +81,8 @@ import { TravelStatsModule } from './travel-stats/travel-stats.module';
     TrafficModule,
     TravelPhrasesModule,
     TravelStatsModule,
+    CountryInfoModule,
+    HolidaysModule,
   ],
 })
 export class AppModule {}

@@ -3,6 +3,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  Activity,
   AlertTriangle,
   Award,
   BarChart3,
@@ -15,6 +16,7 @@ import {
   Compass,
   DollarSign,
   FileText,
+  Flag,
   Globe,
   Heart,
   LayoutDashboard,
@@ -22,10 +24,13 @@ import {
   Leaf,
   MapPin,
   MessageCircle,
+  Mountain,
   Navigation,
   Package,
+  PartyPopper,
   PlusCircle,
   Route,
+  Search,
   Settings,
   Shield,
   ShieldCheck,
@@ -33,6 +38,7 @@ import {
   Stamp,
   Star,
   Users,
+  Wind,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
@@ -56,7 +62,9 @@ const navSections: NavSection[] = [
       { label: 'Home', href: '/', icon: LayoutDashboard },
       { label: 'Map', href: '/map', icon: MapPin },
       { label: 'Discover', href: '/discover', icon: Compass },
+      { label: 'Places', href: '/places', icon: Mountain },
       { label: 'Weather', href: '/weather', icon: Cloud },
+      { label: 'Air Quality', href: '/air-quality', icon: Wind },
       { label: 'Safety', href: '/safety', icon: ShieldCheck },
     ],
   },
@@ -89,11 +97,22 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    title: 'DISCOVER',
+    items: [
+      { label: 'Country Info', href: '/country-info', icon: Flag },
+      { label: 'Travel Guides', href: '/travel-guides', icon: BookOpen },
+      { label: 'Holidays', href: '/holidays', icon: PartyPopper },
+      { label: 'Events', href: '/events', icon: Calendar },
+      { label: 'Cultural', href: '/cultural', icon: Globe },
+    ],
+  },
+  {
     title: 'SAFETY',
     items: [
       { label: 'Emergency', href: '/emergency', icon: AlertTriangle },
       { label: 'Health', href: '/health', icon: Heart },
       { label: 'Advisories', href: '/advisories', icon: Shield },
+      { label: 'Disaster Alerts', href: '/disaster-alerts', icon: Activity },
     ],
   },
   {
@@ -104,8 +123,6 @@ const navSections: NavSection[] = [
       { label: 'Analytics', href: '/stats', icon: BarChart3 },
       { label: 'Badges', href: '/badges', icon: Award },
       { label: 'Passport', href: '/passport', icon: Stamp },
-      { label: 'Events', href: '/events', icon: Calendar },
-      { label: 'Cultural', href: '/cultural', icon: Globe },
       { label: 'Settings', href: '/settings', icon: Settings },
     ],
   },

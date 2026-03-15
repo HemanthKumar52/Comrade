@@ -15,7 +15,11 @@
       "Bash(for dir:*)",
       "Bash(ls -la \"C:\\\\Users\\\\venka\\\\partner-app\\\\packages\\\\web\\\\src\\\\app\\\\\\(dashboard\\)\" | grep -E \"\\\\.tsx$\")",
       "Bash(find \"C:\\\\Users\\\\venka\\\\partner-app\\\\packages\\\\web\\\\src\\\\app\\\\\\(dashboard\\)\" -maxdepth 1 -type d | sort)",
-      "Bash(wc -l /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/accessibility/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/passport/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/travel-kit/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/phrases/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/connectivity/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/traffic/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/vehicles/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/weather/page.tsx)"
+      "Bash(wc -l /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/accessibility/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/passport/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/travel-kit/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/phrases/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/connectivity/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/traffic/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/vehicles/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/weather/page.tsx)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
