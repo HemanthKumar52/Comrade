@@ -4,17 +4,20 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Globe, Search, Clock, Shield, Plug, Scale, Phone, DollarSign,
-  Camera, Plane, Wine, Shirt, Car, AlertTriangle, Sun, Thermometer,
-  Zap, Info, ChevronDown, MapPin, Users, Cigarette, ShoppingBag,
-  HandCoins, Landmark, Baby, Eye, Gavel, Heart,
+  Camera, Plane, Wine, Shirt, Car, AlertTriangle, Sun, Sunset, Sunrise,
+  Zap, Info, ChevronDown, MapPin, Cigarette, ShoppingBag,
+  HandCoins, Landmark, Heart, Smartphone, Wifi, Signal,
+  FileText, Pill, CheckCircle, XCircle, AlertCircle, Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 
-/* ───────────────────────── Comprehensive Mock Data ───────────────────────── */
+/* ───────────────────────── Types ───────────────────────── */
 
 interface CountryData {
   code: string;
@@ -24,9 +27,28 @@ interface CountryData {
   region: string;
   callingCode: string;
   currency: { code: string; name: string; symbol: string };
-  timezone: { name: string; utcOffset: number; dst: boolean };
-  visa: { type: string; color: string; maxDays: number; processingTime: string };
-  plug: { types: string[]; voltage: string; frequency: string; adapter: string };
+  timezone: {
+    name: string;
+    utcOffset: number;
+    dst: boolean;
+    sunrise: string;
+    sunset: string;
+  };
+  visa: {
+    type: 'Visa Free' | 'Visa on Arrival' | 'eVisa Required' | 'Embassy Visa Required' | 'Schengen Visa Required';
+    color: string;
+    maxDays: number;
+    processingTime: string;
+    passportValidity: string;
+    entryRestrictions: string[];
+    documentsRequired: string[];
+  };
+  plug: {
+    types: string[];
+    voltage: string;
+    frequency: string;
+    adapter: string;
+  };
   laws: {
     driving: { side: string; license: string; speedLimits: string };
     alcohol: { legalAge: number; publicDrinking: string };
@@ -38,6 +60,7 @@ interface CountryData {
     bargaining: string;
     smoking: string;
     importRestrictions: string;
+    drugs: string;
   };
   emergency: {
     police: string;
@@ -46,20 +69,28 @@ interface CountryData {
     universal: string;
     other: { label: string; number: string }[];
   };
-  prices: {
-    meal: string; coffee: string; taxi: string; hotel: string;
-    exchangeRate: string; exchangeFrom: string;
+  sim: {
+    esimSupported: boolean;
+    providers: { name: string; type: 'eSIM' | 'Local SIM'; dataPrice: string; coverage: string; speed: string }[];
+    registrationRequired: boolean;
+    registrationNote: string;
+    bestFor: string;
   };
-  weather: { bestMonths: string[]; avoid: string[]; note: string };
-  safety: { level: number; label: string; description: string };
 }
+
+/* ───────────────────────── Comprehensive Mock Data ───────────────────────── */
 
 const allCountries: CountryData[] = [
   {
-    code: 'US', name: 'United States', flag: '🇺🇸', capital: 'Washington D.C.', region: 'North America', callingCode: '+1',
+    code: 'US', name: 'United States', flag: '\u{1F1FA}\u{1F1F8}', capital: 'Washington D.C.', region: 'North America', callingCode: '+1',
     currency: { code: 'USD', name: 'US Dollar', symbol: '$' },
-    timezone: { name: 'EST/PST (multiple)', utcOffset: -5, dst: true },
-    visa: { type: 'Embassy Visa Required', color: 'red', maxDays: 180, processingTime: '3-5 weeks' },
+    timezone: { name: 'EST/PST (multiple)', utcOffset: -5, dst: true, sunrise: '6:45 AM', sunset: '7:30 PM' },
+    visa: {
+      type: 'Embassy Visa Required', color: 'red', maxDays: 180, processingTime: '3-5 weeks',
+      passportValidity: 'Must be valid for 6 months beyond stay',
+      entryRestrictions: ['Valid B1/B2 visa required', 'ESTA for Visa Waiver countries only', 'Proof of return ticket required', 'Sufficient funds must be demonstrated'],
+      documentsRequired: ['Valid passport', 'DS-160 confirmation', 'Visa appointment letter', 'Financial documents', 'Travel itinerary', 'Passport-size photos'],
+    },
     plug: { types: ['A', 'B'], voltage: '120V', frequency: '60Hz', adapter: 'Bring Type A/B adapter. Indian devices may need voltage converter (India uses 230V).' },
     laws: {
       driving: { side: 'Right', license: 'IDP recommended', speedLimits: '25-70 mph (40-112 km/h)' },
@@ -72,20 +103,30 @@ const allCountries: CountryData[] = [
       bargaining: 'Not common except at flea markets',
       smoking: 'Banned in most indoor public spaces',
       importRestrictions: 'No fresh produce, meat, or dairy. Declare items over $800.',
+      drugs: 'Federal law prohibits marijuana. Prescription meds require original packaging with doctor\'s note. Some states allow recreational cannabis.',
     },
-    emergency: {
-      police: '911', ambulance: '911', fire: '911', universal: '911',
-      other: [{ label: 'Poison Control', number: '1-800-222-1222' }, { label: 'Suicide Prevention', number: '988' }],
+    emergency: { police: '911', ambulance: '911', fire: '911', universal: '911', other: [{ label: 'Poison Control', number: '1-800-222-1222' }, { label: 'Suicide Prevention', number: '988' }] },
+    sim: {
+      esimSupported: true,
+      providers: [
+        { name: 'T-Mobile Tourist Plan', type: 'Local SIM', dataPrice: '$30/3 weeks - unlimited', coverage: 'Excellent nationwide', speed: '5G/4G LTE' },
+        { name: 'Airalo USA', type: 'eSIM', dataPrice: '$5/1GB - $18/5GB', coverage: 'Good in urban areas', speed: '4G LTE' },
+        { name: 'Holafly USA', type: 'eSIM', dataPrice: '$19/5 days unlimited', coverage: 'Very good nationwide', speed: '4G LTE' },
+      ],
+      registrationRequired: false, registrationNote: 'No registration needed for prepaid SIMs.',
+      bestFor: 'eSIM recommended for short visits. T-Mobile Tourist Plan for extended stays.',
     },
-    prices: { meal: '$12-25', coffee: '$4-6', taxi: '$2.50/mile', hotel: '$80-250/night', exchangeRate: '1 USD = 83.5 INR', exchangeFrom: 'INR' },
-    weather: { bestMonths: ['Apr', 'May', 'Sep', 'Oct'], avoid: ['Jul', 'Aug'], note: 'Varies hugely by region. Hot summers, cold winters in north.' },
-    safety: { level: 1, label: 'Exercise Normal Precautions', description: 'Generally safe for tourists. Be aware of petty crime in major cities.' },
   },
   {
-    code: 'GB', name: 'United Kingdom', flag: '🇬🇧', capital: 'London', region: 'Europe', callingCode: '+44',
-    currency: { code: 'GBP', name: 'British Pound', symbol: '£' },
-    timezone: { name: 'GMT/BST', utcOffset: 0, dst: true },
-    visa: { type: 'Embassy Visa Required', color: 'red', maxDays: 180, processingTime: '3-4 weeks' },
+    code: 'GB', name: 'United Kingdom', flag: '\u{1F1EC}\u{1F1E7}', capital: 'London', region: 'Europe', callingCode: '+44',
+    currency: { code: 'GBP', name: 'British Pound', symbol: '\u{00A3}' },
+    timezone: { name: 'GMT/BST', utcOffset: 0, dst: true, sunrise: '6:15 AM', sunset: '8:20 PM' },
+    visa: {
+      type: 'Embassy Visa Required', color: 'red', maxDays: 180, processingTime: '3-4 weeks',
+      passportValidity: 'Must be valid for duration of stay',
+      entryRestrictions: ['Standard Visitor Visa required for Indian nationals', 'Must prove intent to leave UK', 'No working on visitor visa', 'TB test certificate may be required'],
+      documentsRequired: ['Valid passport', 'Visa application form', 'Financial proof (bank statements)', 'Accommodation details', 'Travel insurance', 'Biometric appointment'],
+    },
     plug: { types: ['G'], voltage: '230V', frequency: '50Hz', adapter: 'Bring Type G adapter. Voltage is compatible with Indian appliances.' },
     laws: {
       driving: { side: 'Left', license: 'IDP valid 12 months', speedLimits: '30-70 mph (48-112 km/h)' },
@@ -98,20 +139,30 @@ const allCountries: CountryData[] = [
       bargaining: 'Not common',
       smoking: 'Banned in all enclosed public spaces',
       importRestrictions: 'No meat/dairy from non-EU. Limited alcohol/tobacco allowance.',
+      drugs: 'All recreational drugs illegal. Prescription meds need letter from doctor. Cannabis is Class B controlled substance.',
     },
-    emergency: {
-      police: '999', ambulance: '999', fire: '999', universal: '112',
-      other: [{ label: 'Non-Emergency Police', number: '101' }, { label: 'NHS Direct', number: '111' }],
+    emergency: { police: '999', ambulance: '999', fire: '999', universal: '112', other: [{ label: 'Non-Emergency Police', number: '101' }, { label: 'NHS Direct', number: '111' }] },
+    sim: {
+      esimSupported: true,
+      providers: [
+        { name: 'Three UK Tourist SIM', type: 'Local SIM', dataPrice: '\u{00A3}10/12GB (30 days)', coverage: 'Excellent nationwide', speed: '5G/4G' },
+        { name: 'Airalo UK', type: 'eSIM', dataPrice: '$4.50/1GB - $16/5GB', coverage: 'Good urban coverage', speed: '4G LTE' },
+        { name: 'GiffGaff', type: 'Local SIM', dataPrice: '\u{00A3}10/15GB', coverage: 'Very good (O2 network)', speed: '4G LTE' },
+      ],
+      registrationRequired: false, registrationNote: 'No ID registration needed for prepaid SIMs.',
+      bestFor: 'GiffGaff or Three for best value. eSIM for convenience.',
     },
-    prices: { meal: '£10-20', coffee: '£3-5', taxi: '£3-5/mile', hotel: '£60-200/night', exchangeRate: '1 GBP = 105.2 INR', exchangeFrom: 'INR' },
-    weather: { bestMonths: ['May', 'Jun', 'Jul', 'Sep'], avoid: ['Nov', 'Dec', 'Jan'], note: 'Mild but rainy. Bring layers and rain gear year-round.' },
-    safety: { level: 1, label: 'Exercise Normal Precautions', description: 'Safe for tourists. Be aware of pickpockets in tourist areas.' },
   },
   {
-    code: 'TH', name: 'Thailand', flag: '🇹🇭', capital: 'Bangkok', region: 'Southeast Asia', callingCode: '+66',
-    currency: { code: 'THB', name: 'Thai Baht', symbol: '฿' },
-    timezone: { name: 'ICT', utcOffset: 7, dst: false },
-    visa: { type: 'Visa on Arrival', color: 'green', maxDays: 30, processingTime: 'On arrival (~30 min)' },
+    code: 'TH', name: 'Thailand', flag: '\u{1F1F9}\u{1F1ED}', capital: 'Bangkok', region: 'Southeast Asia', callingCode: '+66',
+    currency: { code: 'THB', name: 'Thai Baht', symbol: '\u{0E3F}' },
+    timezone: { name: 'ICT', utcOffset: 7, dst: false, sunrise: '6:20 AM', sunset: '6:15 PM' },
+    visa: {
+      type: 'Visa on Arrival', color: 'green', maxDays: 30, processingTime: 'On arrival (~30 min)',
+      passportValidity: 'Must be valid for at least 6 months',
+      entryRestrictions: ['Proof of accommodation required', 'Return ticket mandatory', 'Must carry 10,000 THB equivalent cash', 'Extension possible for 30 more days at immigration office'],
+      documentsRequired: ['Valid passport', 'Completed arrival/departure card', '2 recent passport photos', 'Proof of accommodation', 'Return flight ticket'],
+    },
     plug: { types: ['A', 'B', 'C', 'O'], voltage: '220V', frequency: '50Hz', adapter: 'Most Indian plugs work directly. Carry universal adapter to be safe.' },
     laws: {
       driving: { side: 'Left', license: 'IDP required', speedLimits: '50-120 km/h' },
@@ -124,20 +175,30 @@ const allCountries: CountryData[] = [
       bargaining: 'Expected at markets and street vendors',
       smoking: 'Banned at beaches, temples, and public buildings',
       importRestrictions: 'No e-cigarettes. Limited alcohol/tobacco. No Buddha images for export.',
+      drugs: 'Extremely strict drug laws. Death penalty for trafficking. Cannabis decriminalized for medical use. All other drugs carry severe penalties.',
     },
-    emergency: {
-      police: '191', ambulance: '1669', fire: '199', universal: '1155',
-      other: [{ label: 'Tourist Police', number: '1155' }, { label: 'Immigration', number: '1178' }],
+    emergency: { police: '191', ambulance: '1669', fire: '199', universal: '1155', other: [{ label: 'Tourist Police', number: '1155' }, { label: 'Immigration', number: '1178' }] },
+    sim: {
+      esimSupported: true,
+      providers: [
+        { name: 'AIS Tourist SIM', type: 'Local SIM', dataPrice: '\u{0E3F}299/15GB (8 days)', coverage: 'Best nationwide coverage', speed: '5G/4G' },
+        { name: 'TrueMove H', type: 'Local SIM', dataPrice: '\u{0E3F}199/unlimited (7 days)', coverage: 'Great in cities', speed: '4G LTE' },
+        { name: 'Airalo Thailand', type: 'eSIM', dataPrice: '$5/1GB - $14.50/5GB', coverage: 'Good urban areas', speed: '4G LTE' },
+      ],
+      registrationRequired: true, registrationNote: 'Passport required for SIM registration at point of sale.',
+      bestFor: 'AIS Tourist SIM from airport for best coverage. eSIM if you want to avoid registration.',
     },
-    prices: { meal: '฿50-200', coffee: '฿40-80', taxi: '฿35 start + ฿5.5/km', hotel: '฿500-3000/night', exchangeRate: '1 THB = 2.4 INR', exchangeFrom: 'INR' },
-    weather: { bestMonths: ['Nov', 'Dec', 'Jan', 'Feb'], avoid: ['Apr', 'May'], note: 'Nov-Feb is cool & dry. Apr is extreme heat. Jun-Oct is rainy season.' },
-    safety: { level: 1, label: 'Exercise Normal Precautions', description: 'Very popular with tourists. Beware of scams and motorbike rentals.' },
   },
   {
-    code: 'JP', name: 'Japan', flag: '🇯🇵', capital: 'Tokyo', region: 'East Asia', callingCode: '+81',
-    currency: { code: 'JPY', name: 'Japanese Yen', symbol: '¥' },
-    timezone: { name: 'JST', utcOffset: 9, dst: false },
-    visa: { type: 'Embassy Visa Required', color: 'orange', maxDays: 90, processingTime: '5-7 business days' },
+    code: 'JP', name: 'Japan', flag: '\u{1F1EF}\u{1F1F5}', capital: 'Tokyo', region: 'East Asia', callingCode: '+81',
+    currency: { code: 'JPY', name: 'Japanese Yen', symbol: '\u{00A5}' },
+    timezone: { name: 'JST', utcOffset: 9, dst: false, sunrise: '5:30 AM', sunset: '6:45 PM' },
+    visa: {
+      type: 'Embassy Visa Required', color: 'orange', maxDays: 90, processingTime: '5-7 business days',
+      passportValidity: 'Must be valid for duration of stay',
+      entryRestrictions: ['Return ticket required', 'Proof of sufficient funds', 'Visit Japan Web registration recommended', 'COVID-era restrictions fully lifted'],
+      documentsRequired: ['Valid passport', 'Visa application form', 'Photo (4.5cm x 4.5cm)', 'Schedule of stay', 'Letter of guarantee/invitation', 'Financial proof'],
+    },
     plug: { types: ['A', 'B'], voltage: '100V', frequency: '50/60Hz', adapter: 'Bring Type A adapter AND voltage converter. Japan uses only 100V.' },
     laws: {
       driving: { side: 'Left', license: 'IDP (Geneva Convention) required', speedLimits: '30-100 km/h' },
@@ -150,20 +211,30 @@ const allCountries: CountryData[] = [
       bargaining: 'Not practiced',
       smoking: 'Designated areas only. Fines for street smoking.',
       importRestrictions: 'No firearms, drugs, counterfeit goods. Medication limits apply.',
+      drugs: 'Zero tolerance. Even small amounts of marijuana carry prison sentences. Some cold medicines and ADHD medications (containing pseudoephedrine/amphetamines) are banned. Bring Yakkan Shoumei (import certificate) for prescription meds.',
     },
-    emergency: {
-      police: '110', ambulance: '119', fire: '119', universal: '110',
-      other: [{ label: 'Japan Helpline', number: '0570-064-211' }, { label: 'AMDA Medical', number: '03-5285-8088' }],
+    emergency: { police: '110', ambulance: '119', fire: '119', universal: '110', other: [{ label: 'Japan Helpline', number: '0570-064-211' }, { label: 'AMDA Medical', number: '03-5285-8088' }] },
+    sim: {
+      esimSupported: true,
+      providers: [
+        { name: 'Ubigi Japan', type: 'eSIM', dataPrice: '$9/3GB (30 days)', coverage: 'Excellent (Docomo/SoftBank)', speed: '4G LTE/5G' },
+        { name: 'IIJmio Travel SIM', type: 'Local SIM', dataPrice: '\u{00A5}1,600/2GB', coverage: 'Very good nationwide', speed: '4G LTE' },
+        { name: 'Sakura Mobile', type: 'Local SIM', dataPrice: '\u{00A5}3,500/unlimited (7 days)', coverage: 'Excellent', speed: '4G/5G' },
+      ],
+      registrationRequired: false, registrationNote: 'No registration for tourist SIMs. Available at airports and convenience stores.',
+      bestFor: 'eSIM (Ubigi) for instant connectivity. Pocket WiFi also very popular in Japan.',
     },
-    prices: { meal: '¥800-2000', coffee: '¥300-500', taxi: '¥410 start + ¥80/400m', hotel: '¥5000-25000/night', exchangeRate: '1 JPY = 0.56 INR', exchangeFrom: 'INR' },
-    weather: { bestMonths: ['Mar', 'Apr', 'Oct', 'Nov'], avoid: ['Jun', 'Jul'], note: 'Cherry blossoms in Apr. Rainy June. Hot humid summer. Beautiful autumn.' },
-    safety: { level: 1, label: 'Exercise Normal Precautions', description: 'One of the safest countries. Extremely low crime rate.' },
   },
   {
-    code: 'AE', name: 'UAE', flag: '🇦🇪', capital: 'Abu Dhabi', region: 'Middle East', callingCode: '+971',
-    currency: { code: 'AED', name: 'UAE Dirham', symbol: 'د.إ' },
-    timezone: { name: 'GST', utcOffset: 4, dst: false },
-    visa: { type: 'Visa on Arrival', color: 'green', maxDays: 30, processingTime: 'On arrival (~15 min)' },
+    code: 'AE', name: 'UAE', flag: '\u{1F1E6}\u{1F1EA}', capital: 'Abu Dhabi', region: 'Middle East', callingCode: '+971',
+    currency: { code: 'AED', name: 'UAE Dirham', symbol: '\u{062F}.\u{0625}' },
+    timezone: { name: 'GST', utcOffset: 4, dst: false, sunrise: '6:10 AM', sunset: '6:30 PM' },
+    visa: {
+      type: 'Visa on Arrival', color: 'green', maxDays: 30, processingTime: 'On arrival (~15 min)',
+      passportValidity: 'Must be valid for at least 6 months',
+      entryRestrictions: ['Free 30-day visa on arrival for Indian passport holders', 'Extendable for additional 30 days', 'Must have hotel booking or sponsor', 'No Israeli stamps (relaxed since 2020 Abraham Accords)'],
+      documentsRequired: ['Valid passport', 'Return ticket', 'Hotel reservation or host details', 'Sufficient funds', 'Travel insurance recommended'],
+    },
     plug: { types: ['C', 'D', 'G'], voltage: '220V', frequency: '50Hz', adapter: 'Indian Type D plugs work in many outlets. Carry Type G adapter for UK-style sockets.' },
     laws: {
       driving: { side: 'Right', license: 'IDP required', speedLimits: '40-140 km/h' },
@@ -176,20 +247,30 @@ const allCountries: CountryData[] = [
       bargaining: 'Expected at souks and traditional markets',
       smoking: 'Banned in enclosed public spaces. Designated areas in malls.',
       importRestrictions: 'No pork, alcohol (duty free limits), or drugs. Prescription meds need documentation.',
+      drugs: 'Extreme zero-tolerance policy. Death penalty for trafficking. Even trace amounts can lead to 4-year prison. Codeine, tramadol, and some antidepressants require prior approval. Carry prescriptions with attested doctor letter.',
     },
-    emergency: {
-      police: '999', ambulance: '998', fire: '997', universal: '112',
-      other: [{ label: 'Coastguard', number: '996' }, { label: 'Electricity Emergency', number: '991' }],
+    emergency: { police: '999', ambulance: '998', fire: '997', universal: '112', other: [{ label: 'Coastguard', number: '996' }, { label: 'Electricity Emergency', number: '991' }] },
+    sim: {
+      esimSupported: true,
+      providers: [
+        { name: 'du Tourist SIM', type: 'Local SIM', dataPrice: 'AED 55/2GB (14 days)', coverage: 'Excellent nationwide', speed: '5G/4G' },
+        { name: 'Etisalat Visitor Line', type: 'Local SIM', dataPrice: 'AED 75/3GB (28 days)', coverage: 'Excellent nationwide', speed: '5G/4G' },
+        { name: 'Airalo UAE', type: 'eSIM', dataPrice: '$4.50/1GB - $14/5GB', coverage: 'Very good', speed: '4G LTE' },
+      ],
+      registrationRequired: true, registrationNote: 'Passport and Emirates ID (for residents) or passport copy for tourists required.',
+      bestFor: 'du Tourist SIM from airport is convenient. eSIM if your phone supports it.',
     },
-    prices: { meal: '30-80 AED', coffee: '15-25 AED', taxi: '12 AED start + 1.82/km', hotel: '200-800 AED/night', exchangeRate: '1 AED = 22.7 INR', exchangeFrom: 'INR' },
-    weather: { bestMonths: ['Nov', 'Dec', 'Jan', 'Feb', 'Mar'], avoid: ['Jun', 'Jul', 'Aug'], note: 'Oct-Apr pleasant. Summer temperatures can exceed 45°C.' },
-    safety: { level: 1, label: 'Exercise Normal Precautions', description: 'Very safe. Low crime rate. Strict laws - respect local customs.' },
   },
   {
-    code: 'FR', name: 'France', flag: '🇫🇷', capital: 'Paris', region: 'Europe', callingCode: '+33',
-    currency: { code: 'EUR', name: 'Euro', symbol: '€' },
-    timezone: { name: 'CET', utcOffset: 1, dst: true },
-    visa: { type: 'Schengen Visa Required', color: 'orange', maxDays: 90, processingTime: '2-3 weeks' },
+    code: 'FR', name: 'France', flag: '\u{1F1EB}\u{1F1F7}', capital: 'Paris', region: 'Europe', callingCode: '+33',
+    currency: { code: 'EUR', name: 'Euro', symbol: '\u{20AC}' },
+    timezone: { name: 'CET', utcOffset: 1, dst: true, sunrise: '7:00 AM', sunset: '9:15 PM' },
+    visa: {
+      type: 'Schengen Visa Required', color: 'orange', maxDays: 90, processingTime: '2-3 weeks',
+      passportValidity: 'Must be valid 3 months beyond intended departure from Schengen area',
+      entryRestrictions: ['Schengen visa valid for 26 countries', '90 days within 180-day period', 'Travel insurance with 30,000 EUR coverage mandatory', 'Must enter through the Schengen country that issued visa first'],
+      documentsRequired: ['Valid passport (10 years old max)', 'Schengen visa application form', 'Travel insurance certificate', 'Flight reservation', 'Accommodation proof', 'Bank statements (3 months)', 'Cover letter'],
+    },
     plug: { types: ['C', 'E'], voltage: '230V', frequency: '50Hz', adapter: 'Bring Type C/E adapter. Voltage compatible with Indian appliances.' },
     laws: {
       driving: { side: 'Right', license: 'IDP required', speedLimits: '50-130 km/h' },
@@ -202,20 +283,30 @@ const allCountries: CountryData[] = [
       bargaining: 'Not common except at flea markets',
       smoking: 'Banned in enclosed public spaces. Common on terraces.',
       importRestrictions: 'EU limits on tobacco/alcohol. No counterfeit goods.',
+      drugs: 'All drugs illegal for personal use. Cannabis most commonly used but carries fines. Prescription medications require French or EU prescription or doctor\'s letter.',
     },
-    emergency: {
-      police: '17', ambulance: '15', fire: '18', universal: '112',
-      other: [{ label: 'SAMU (Medical)', number: '15' }, { label: 'SOS Doctor', number: '01 47 07 77 77' }],
+    emergency: { police: '17', ambulance: '15', fire: '18', universal: '112', other: [{ label: 'SAMU (Medical)', number: '15' }, { label: 'SOS Doctor', number: '01 47 07 77 77' }] },
+    sim: {
+      esimSupported: true,
+      providers: [
+        { name: 'Orange Holiday SIM', type: 'Local SIM', dataPrice: '\u{20AC}39.99/20GB (14 days)', coverage: 'Excellent + EU roaming', speed: '4G/5G' },
+        { name: 'Free Mobile Tourist', type: 'Local SIM', dataPrice: '\u{20AC}19.99/unlimited (30 days)', coverage: 'Very good in cities', speed: '4G/5G' },
+        { name: 'Airalo Europe', type: 'eSIM', dataPrice: '$5/1GB - $20/5GB', coverage: 'Good (multi-country)', speed: '4G LTE' },
+      ],
+      registrationRequired: false, registrationNote: 'No ID required for prepaid SIMs. Available at tabacs and phone shops.',
+      bestFor: 'Orange Holiday for reliability. Airalo eSIM for multi-country European travel.',
     },
-    prices: { meal: '€12-25', coffee: '€2-5', taxi: '€2.60 start + €1.07/km', hotel: '€60-250/night', exchangeRate: '1 EUR = 90.8 INR', exchangeFrom: 'INR' },
-    weather: { bestMonths: ['Apr', 'May', 'Jun', 'Sep'], avoid: ['Aug'], note: 'Mild climate. Paris lovely in spring. Many locals vacation in August.' },
-    safety: { level: 1, label: 'Exercise Normal Precautions', description: 'Safe but beware of pickpockets in Paris metro and tourist sites.' },
   },
   {
-    code: 'AU', name: 'Australia', flag: '🇦🇺', capital: 'Canberra', region: 'Oceania', callingCode: '+61',
+    code: 'AU', name: 'Australia', flag: '\u{1F1E6}\u{1F1FA}', capital: 'Canberra', region: 'Oceania', callingCode: '+61',
     currency: { code: 'AUD', name: 'Australian Dollar', symbol: 'A$' },
-    timezone: { name: 'AEST/AWST (multiple)', utcOffset: 10, dst: true },
-    visa: { type: 'eVisa Required', color: 'orange', maxDays: 90, processingTime: '1-4 weeks' },
+    timezone: { name: 'AEST/AWST (multiple)', utcOffset: 10, dst: true, sunrise: '5:55 AM', sunset: '7:40 PM' },
+    visa: {
+      type: 'eVisa Required', color: 'orange', maxDays: 90, processingTime: '1-4 weeks',
+      passportValidity: 'Must be valid for duration of stay',
+      entryRestrictions: ['eVisitor (subclass 651) or ETA (subclass 601)', 'No work permitted on tourist visa', 'Character requirements apply', 'Health insurance strongly recommended'],
+      documentsRequired: ['Valid passport', 'Online visa application (ImmiAccount)', 'Passport photos', 'Travel itinerary', 'Financial evidence', 'Health examination (if required)'],
+    },
     plug: { types: ['I'], voltage: '230V', frequency: '50Hz', adapter: 'Bring Type I adapter. Voltage compatible with Indian appliances.' },
     laws: {
       driving: { side: 'Left', license: 'IDP required', speedLimits: '50-130 km/h' },
@@ -228,20 +319,30 @@ const allCountries: CountryData[] = [
       bargaining: 'Not practiced',
       smoking: 'Strict bans in public spaces, outdoor dining, beaches.',
       importRestrictions: 'Extremely strict biosecurity. Declare ALL food, plant, animal products.',
+      drugs: 'All recreational drugs illegal federally. ACT has decriminalized small amounts of cannabis. Prescription meds need original packaging and doctor\'s letter. Declare all medications at customs.',
     },
-    emergency: {
-      police: '000', ambulance: '000', fire: '000', universal: '112',
-      other: [{ label: 'Poisons Info', number: '13 11 26' }, { label: 'SES Emergency', number: '132 500' }],
+    emergency: { police: '000', ambulance: '000', fire: '000', universal: '112', other: [{ label: 'Poisons Info', number: '13 11 26' }, { label: 'SES Emergency', number: '132 500' }] },
+    sim: {
+      esimSupported: true,
+      providers: [
+        { name: 'Optus Prepaid', type: 'Local SIM', dataPrice: 'A$30/40GB (28 days)', coverage: 'Very good nationwide', speed: '4G/5G' },
+        { name: 'Telstra Prepaid', type: 'Local SIM', dataPrice: 'A$30/30GB (28 days)', coverage: 'Best regional coverage', speed: '4G/5G' },
+        { name: 'Airalo Australia', type: 'eSIM', dataPrice: '$6/1GB - $18/5GB', coverage: 'Good in cities', speed: '4G LTE' },
+      ],
+      registrationRequired: true, registrationNote: 'ID verification required. Passport accepted for tourists.',
+      bestFor: 'Telstra for outback/regional travel. Optus for city stays. eSIM for short visits.',
     },
-    prices: { meal: 'A$15-35', coffee: 'A$4-6', taxi: 'A$3.50 start + A$2.20/km', hotel: 'A$100-300/night', exchangeRate: '1 AUD = 54.1 INR', exchangeFrom: 'INR' },
-    weather: { bestMonths: ['Sep', 'Oct', 'Nov', 'Mar', 'Apr'], avoid: ['Dec', 'Jan', 'Feb'], note: 'Seasons reversed from Northern Hemisphere. Summer is Dec-Feb (very hot).' },
-    safety: { level: 1, label: 'Exercise Normal Precautions', description: 'Very safe. Beware of wildlife, sun exposure, and ocean currents.' },
   },
   {
-    code: 'SG', name: 'Singapore', flag: '🇸🇬', capital: 'Singapore', region: 'Southeast Asia', callingCode: '+65',
+    code: 'SG', name: 'Singapore', flag: '\u{1F1F8}\u{1F1EC}', capital: 'Singapore', region: 'Southeast Asia', callingCode: '+65',
     currency: { code: 'SGD', name: 'Singapore Dollar', symbol: 'S$' },
-    timezone: { name: 'SGT', utcOffset: 8, dst: false },
-    visa: { type: 'Visa Free', color: 'green', maxDays: 30, processingTime: 'Stamp on arrival' },
+    timezone: { name: 'SGT', utcOffset: 8, dst: false, sunrise: '7:00 AM', sunset: '7:10 PM' },
+    visa: {
+      type: 'Visa Free', color: 'green', maxDays: 30, processingTime: 'Stamp on arrival',
+      passportValidity: 'Must be valid for at least 6 months',
+      entryRestrictions: ['SG Arrival Card must be submitted online within 3 days before arrival', 'Return ticket required', 'Proof of sufficient funds', 'Yellow fever vaccination if from affected area'],
+      documentsRequired: ['Valid passport', 'SG Arrival Card (electronic)', 'Return/onward ticket', 'Proof of accommodation'],
+    },
     plug: { types: ['G'], voltage: '230V', frequency: '50Hz', adapter: 'Bring Type G adapter. Voltage compatible with Indian appliances.' },
     laws: {
       driving: { side: 'Left', license: 'IDP required', speedLimits: '50-90 km/h' },
@@ -254,14 +355,19 @@ const allCountries: CountryData[] = [
       bargaining: 'Not common except at some markets',
       smoking: 'Banned in most public spaces. Heavy fines.',
       importRestrictions: 'No chewing gum. Strict drug laws (death penalty). Declare >S$20,000.',
+      drugs: 'Death penalty for trafficking. Mandatory death for >15g heroin, >30g cocaine, >500g cannabis. Even small amounts lead to lengthy prison. Prescription meds need doctor letter and approval from HSA.',
     },
-    emergency: {
-      police: '999', ambulance: '995', fire: '995', universal: '112',
-      other: [{ label: 'Non-Emergency', number: '1800-255-0000' }, { label: 'Health Hotline', number: '1800-333-9999' }],
+    emergency: { police: '999', ambulance: '995', fire: '995', universal: '112', other: [{ label: 'Non-Emergency', number: '1800-255-0000' }, { label: 'Health Hotline', number: '1800-333-9999' }] },
+    sim: {
+      esimSupported: true,
+      providers: [
+        { name: 'Singtel hi!Tourist', type: 'Local SIM', dataPrice: 'S$15/100GB (5 days)', coverage: 'Excellent nationwide', speed: '5G/4G' },
+        { name: 'StarHub Travel SIM', type: 'Local SIM', dataPrice: 'S$18/100GB (7 days)', coverage: 'Excellent', speed: '5G/4G' },
+        { name: 'Airalo Singapore', type: 'eSIM', dataPrice: '$4.50/1GB - $12/5GB', coverage: 'Excellent', speed: '4G LTE/5G' },
+      ],
+      registrationRequired: true, registrationNote: 'Passport required for SIM purchase. Available at Changi Airport on arrival.',
+      bestFor: 'Singtel hi!Tourist from Changi Airport. Excellent 5G coverage island-wide.',
     },
-    prices: { meal: 'S$5-20', coffee: 'S$4-7', taxi: 'S$3.20 start + S$0.22/400m', hotel: 'S$80-350/night', exchangeRate: '1 SGD = 62.3 INR', exchangeFrom: 'INR' },
-    weather: { bestMonths: ['Feb', 'Mar', 'Apr', 'May'], avoid: ['Nov', 'Dec'], note: 'Hot and humid year-round. Nov-Jan is monsoon season.' },
-    safety: { level: 1, label: 'Exercise Normal Precautions', description: 'Extremely safe. Very strict laws - follow all rules carefully.' },
   },
 ];
 
@@ -273,11 +379,10 @@ const visaColorMap: Record<string, string> = {
   red: 'bg-red-100 text-red-800 border-red-200',
 };
 
-const safetyLevelMap: Record<number, { bg: string; text: string; icon: string }> = {
-  1: { bg: 'bg-green-50 border-green-200', text: 'text-green-700', icon: '🟢' },
-  2: { bg: 'bg-yellow-50 border-yellow-200', text: 'text-yellow-700', icon: '🟡' },
-  3: { bg: 'bg-orange-50 border-orange-200', text: 'text-orange-700', icon: '🟠' },
-  4: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', icon: '🔴' },
+const visaIconMap: Record<string, React.ReactNode> = {
+  green: <CheckCircle className="w-5 h-5 text-green-600" />,
+  orange: <AlertCircle className="w-5 h-5 text-orange-600" />,
+  red: <XCircle className="w-5 h-5 text-red-600" />,
 };
 
 const lgbtqColorMap: Record<string, string> = {
@@ -286,17 +391,73 @@ const lgbtqColorMap: Record<string, string> = {
   red: 'bg-red-100 text-red-700',
 };
 
+/* ───── Plug Type Visual Data ───── */
+
+const plugTypeInfo: Record<string, { name: string; pins: string; countries: string; svg: string }> = {
+  A: { name: 'Type A', pins: '2 flat parallel', countries: 'US, Canada, Japan, Mexico', svg: '||' },
+  B: { name: 'Type B', pins: '2 flat + 1 round ground', countries: 'US, Canada, Mexico', svg: '||o' },
+  C: { name: 'Type C', pins: '2 round pins', countries: 'Europe, S. America, Asia', svg: 'oo' },
+  D: { name: 'Type D', pins: '3 large round pins (triangle)', countries: 'India, Nepal, Sri Lanka', svg: 'ooo' },
+  E: { name: 'Type E', pins: '2 round + ground socket', countries: 'France, Belgium, Poland', svg: 'oo+' },
+  F: { name: 'Type F', pins: '2 round + side ground clips', countries: 'Germany, Europe', svg: 'oo=' },
+  G: { name: 'Type G', pins: '3 rectangular (fused)', countries: 'UK, Ireland, Singapore, UAE', svg: '=||' },
+  H: { name: 'Type H', pins: '3 pins (V-shape)', countries: 'Israel', svg: 'v-o' },
+  I: { name: 'Type I', pins: '2 angled flat + ground', countries: 'Australia, NZ, China, Argentina', svg: '/\\o' },
+  J: { name: 'Type J', pins: '3 round pins', countries: 'Switzerland, Liechtenstein', svg: 'ooo' },
+  K: { name: 'Type K', pins: '3 round pins', countries: 'Denmark, Greenland', svg: 'ooo' },
+  L: { name: 'Type L', pins: '3 round in-line', countries: 'Italy, Chile', svg: 'o-o-o' },
+  M: { name: 'Type M', pins: '3 large round pins', countries: 'South Africa, India (large)', svg: 'OOO' },
+  N: { name: 'Type N', pins: '3 round pins', countries: 'Brazil, South Africa', svg: 'ooo' },
+  O: { name: 'Type O', pins: '3 round pins', countries: 'Thailand', svg: 'ooo' },
+};
+
 const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } };
+
+/* ───────────────────────── Loading Skeleton ───────────────────────── */
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="h-8 w-64 bg-gray-200 rounded-lg" />
+      <div className="h-4 w-96 bg-gray-100 rounded" />
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <div className="h-14 bg-gray-100 rounded-xl" />
+          <div className="flex gap-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-8 w-24 bg-gray-100 rounded-full" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+      <div className="h-10 bg-gray-100 rounded-lg" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="h-64 bg-gray-100 rounded-xl" />
+        <div className="h-64 bg-gray-100 rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+/* ───────────────────────── Main Page Component ───────────────────────── */
 
 export default function TravelKitPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCode, setSelectedCode] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [activeTab, setActiveTab] = useState('visa');
+  const [isLoading, setIsLoading] = useState(true);
+  const [passportExpiry, setPassportExpiry] = useState('');
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 800);
+    return () => clearTimeout(t);
   }, []);
 
   const filteredCountries = useMemo(() => {
@@ -325,6 +486,31 @@ export default function TravelKitPage() {
   const hoursDiff = country ? Math.abs(homeTimezone.utcOffset - country.timezone.utcOffset) : 0;
   const jetLagDays = Math.ceil(hoursDiff / 2);
 
+  const passportValid = useMemo(() => {
+    if (!passportExpiry || !country) return null;
+    const expiry = new Date(passportExpiry);
+    const now = new Date();
+    const monthsRemaining = (expiry.getFullYear() - now.getFullYear()) * 12 + (expiry.getMonth() - now.getMonth());
+    const sixMonthsOk = monthsRemaining >= 6;
+    const threeMonthsOk = monthsRemaining >= 3;
+    const durationOk = expiry > now;
+    const requirement = country.visa.passportValidity.toLowerCase();
+    const isOk = requirement.includes('6 months') ? sixMonthsOk : requirement.includes('3 months') ? threeMonthsOk : durationOk;
+    return { isOk, monthsRemaining, expiryDate: expiry };
+  }, [passportExpiry, country]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 pb-12">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-6 h-6 text-[#E8733A] animate-spin" />
+          <span className="text-gray-500">Loading Travel Kit...</span>
+        </div>
+        <LoadingSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8 pb-12">
       {/* Header */}
@@ -333,7 +519,7 @@ export default function TravelKitPage() {
         <p className="text-gray-500 mt-1">Everything you need to know before traveling to any country</p>
       </motion.div>
 
-      {/* Country Explorer Selector */}
+      {/* Country Selector */}
       <motion.div {...fadeIn} transition={{ delay: 0.05 }}>
         <Card className="border-2 border-[#1A3C5E]/20 shadow-lg">
           <CardContent className="pt-6 pb-6">
@@ -343,7 +529,7 @@ export default function TravelKitPage() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-[#1A3C5E]">Country Explorer</h2>
-                <p className="text-sm text-gray-500">Select a country to explore comprehensive travel information</p>
+                <p className="text-sm text-gray-500">Select a destination for comprehensive travel information</p>
               </div>
             </div>
 
@@ -352,10 +538,7 @@ export default function TravelKitPage() {
               <Input
                 placeholder="Search countries by name, code, or capital..."
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setShowDropdown(true);
-                }}
+                onChange={(e) => { setSearchQuery(e.target.value); setShowDropdown(true); }}
                 onFocus={() => setShowDropdown(true)}
                 className="pl-12 pr-4 h-14 text-lg rounded-xl border-2 border-gray-200 focus:border-[#E8733A]"
               />
@@ -377,11 +560,7 @@ export default function TravelKitPage() {
                         'w-full flex items-center gap-3 px-4 py-3 hover:bg-[#1A3C5E]/5 transition-colors text-left',
                         selectedCode === c.code && 'bg-[#E8733A]/10'
                       )}
-                      onClick={() => {
-                        setSelectedCode(c.code);
-                        setSearchQuery('');
-                        setShowDropdown(false);
-                      }}
+                      onClick={() => { setSelectedCode(c.code); setSearchQuery(''); setShowDropdown(false); }}
                     >
                       <span className="text-2xl">{c.flag}</span>
                       <div>
@@ -420,7 +599,7 @@ export default function TravelKitPage() {
         </Card>
       </motion.div>
 
-      {/* Country Detail Sections */}
+      {/* Country Details */}
       <AnimatePresence mode="wait">
         {country && (
           <motion.div
@@ -431,7 +610,7 @@ export default function TravelKitPage() {
             transition={{ duration: 0.4 }}
             className="space-y-6"
           >
-            {/* Country Header */}
+            {/* Country Header Banner */}
             <Card className="bg-gradient-to-r from-[#1A3C5E] to-[#2a5a87] text-white border-0 overflow-hidden">
               <CardContent className="py-8">
                 <div className="flex flex-col sm:flex-row items-center gap-6">
@@ -457,458 +636,849 @@ export default function TravelKitPage() {
               </CardContent>
             </Card>
 
-            {/* Current Local Time + Timezone Comparison */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <motion.div {...fadeIn} transition={{ delay: 0.1 }}>
-                <Card className="h-full">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
-                      <Clock className="w-5 h-5 text-[#E8733A]" /> Current Local Time
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-4">
-                      <p className="text-5xl font-bold font-mono text-[#1A3C5E]">
-                        {destTime && formatClock(destTime)}
-                      </p>
-                      <p className="text-sm text-gray-500 mt-2">{destTime && formatDate(destTime)}</p>
-                      <div className="flex justify-center gap-3 mt-3">
-                        <Badge variant="outline">{country.timezone.name}</Badge>
-                        <Badge variant="outline">UTC{country.timezone.utcOffset >= 0 ? '+' : ''}{country.timezone.utcOffset}</Badge>
-                        <Badge variant="outline" className={country.timezone.dst ? 'bg-yellow-50 text-yellow-700' : ''}>
-                          {country.timezone.dst ? 'DST Active' : 'No DST'}
-                        </Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+            {/* Tabbed Content */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="w-full flex flex-wrap h-auto gap-1 bg-gray-100 p-1.5 rounded-xl">
+                <TabsTrigger value="visa" className="flex items-center gap-1.5 text-xs sm:text-sm flex-1 min-w-[120px]">
+                  <Landmark className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Visa & Entry</span>
+                  <span className="sm:hidden">Visa</span>
+                </TabsTrigger>
+                <TabsTrigger value="power" className="flex items-center gap-1.5 text-xs sm:text-sm flex-1 min-w-[120px]">
+                  <Plug className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Plug & Voltage</span>
+                  <span className="sm:hidden">Power</span>
+                </TabsTrigger>
+                <TabsTrigger value="time" className="flex items-center gap-1.5 text-xs sm:text-sm flex-1 min-w-[120px]">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Time Zones</span>
+                  <span className="sm:hidden">Time</span>
+                </TabsTrigger>
+                <TabsTrigger value="laws" className="flex items-center gap-1.5 text-xs sm:text-sm flex-1 min-w-[120px]">
+                  <Scale className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Laws & Rules</span>
+                  <span className="sm:hidden">Laws</span>
+                </TabsTrigger>
+                <TabsTrigger value="sim" className="flex items-center gap-1.5 text-xs sm:text-sm flex-1 min-w-[120px]">
+                  <Smartphone className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">eSIM & SIM</span>
+                  <span className="sm:hidden">SIM</span>
+                </TabsTrigger>
+              </TabsList>
 
-              <motion.div {...fadeIn} transition={{ delay: 0.15 }}>
-                <Card className="h-full">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
-                      <Globe className="w-5 h-5 text-[#E8733A]" /> Timezone Comparison
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="text-center p-4 bg-blue-50 rounded-xl">
-                        <p className="text-xs text-gray-500 uppercase tracking-wide">Home ({homeTimezone.name})</p>
-                        <p className="text-2xl font-bold font-mono text-[#1A3C5E] mt-1">{formatClock(homeTime)}</p>
-                        <p className="text-xs text-gray-500 mt-1">{formatDate(homeTime)}</p>
+              {/* ═══════════════ TAB 1: Visa & Entry ═══════════════ */}
+              <TabsContent value="visa" className="space-y-6">
+                {/* Visa Type Overview */}
+                <motion.div {...fadeIn}>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
+                        <Landmark className="w-5 h-5 text-[#E8733A]" /> Visa & Entry Requirements
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Visa Status Banner */}
+                      <div className={cn('p-5 rounded-xl border-2 flex items-center gap-4', visaColorMap[country.visa.color])}>
+                        {visaIconMap[country.visa.color]}
+                        <div>
+                          <p className="text-lg font-bold">{country.visa.type}</p>
+                          <p className="text-sm opacity-80">For Indian passport holders</p>
+                        </div>
                       </div>
-                      <div className="text-center p-4 bg-orange-50 rounded-xl">
-                        <p className="text-xs text-gray-500 uppercase tracking-wide">{country.name} ({country.timezone.name})</p>
-                        <p className="text-2xl font-bold font-mono text-[#E8733A] mt-1">{destTime && formatClock(destTime)}</p>
-                        <p className="text-xs text-gray-500 mt-1">{destTime && formatDate(destTime)}</p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="p-4 bg-gray-50 rounded-xl text-center">
+                          <p className="text-xs text-gray-500 uppercase tracking-wide">Max Stay</p>
+                          <p className="text-2xl font-bold text-[#1A3C5E] mt-1">{country.visa.maxDays}</p>
+                          <p className="text-xs text-gray-500">days</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-xl text-center">
+                          <p className="text-xs text-gray-500 uppercase tracking-wide">Processing Time</p>
+                          <p className="text-lg font-bold text-[#1A3C5E] mt-1">{country.visa.processingTime}</p>
+                        </div>
+                        <div className="p-4 bg-gray-50 rounded-xl text-center">
+                          <p className="text-xs text-gray-500 uppercase tracking-wide">Passport Validity</p>
+                          <p className="text-sm font-bold text-[#1A3C5E] mt-1">{country.visa.passportValidity}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="text-center p-3 bg-gray-50 rounded-xl">
-                        <p className="text-xs text-gray-500">Time Difference</p>
-                        <p className="text-xl font-bold text-[#1A3C5E]">{hoursDiff}h {country.timezone.utcOffset > homeTimezone.utcOffset ? 'ahead' : 'behind'}</p>
-                      </div>
-                      <div className="text-center p-3 bg-gray-50 rounded-xl">
-                        <p className="text-xs text-gray-500">Jet Lag Recovery</p>
-                        <p className="text-xl font-bold text-[#1A3C5E]">~{jetLagDays} day{jetLagDays !== 1 ? 's' : ''}</p>
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Working Hours Overlap (9AM-5PM)</p>
-                      <div className="flex gap-0.5">
-                        {Array.from({ length: 24 }, (_, h) => {
-                          const homeH = (h + homeTimezone.utcOffset + 24) % 24;
-                          const destH = (h + country.timezone.utcOffset + 24) % 24;
-                          const homeW = homeH >= 9 && homeH < 17;
-                          const destW = destH >= 9 && destH < 17;
-                          return (
-                            <div
-                              key={h}
-                              className={cn(
-                                'flex-1 h-5 rounded-sm',
-                                homeW && destW ? 'bg-green-400' : homeW || destW ? 'bg-yellow-200' : 'bg-gray-100'
-                              )}
-                              title={`UTC ${h}:00`}
+
+                      {/* Passport Validity Checker */}
+                      <div className="p-5 bg-[#1A3C5E]/5 rounded-xl">
+                        <h4 className="font-semibold text-[#1A3C5E] flex items-center gap-2 mb-3">
+                          <FileText className="w-4 h-4 text-[#E8733A]" />
+                          Passport Validity Checker
+                        </h4>
+                        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+                          <div className="flex-1">
+                            <label className="text-xs text-gray-500 mb-1 block">Passport Expiry Date</label>
+                            <Input
+                              type="date"
+                              value={passportExpiry}
+                              onChange={(e) => setPassportExpiry(e.target.value)}
+                              className="max-w-xs"
                             />
-                          );
-                        })}
-                      </div>
-                      <div className="flex gap-4 mt-1.5 text-[10px] text-gray-500">
-                        <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-green-400" /> Overlap</span>
-                        <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-yellow-200" /> One side working</span>
-                        <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-gray-100" /> Off hours</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </div>
-
-            {/* Visa Info */}
-            <motion.div {...fadeIn} transition={{ delay: 0.2 }}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
-                    <Landmark className="w-5 h-5 text-[#E8733A]" /> Visa Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                    <Badge className={cn('text-sm px-4 py-2 border', visaColorMap[country.visa.color])}>
-                      {country.visa.type}
-                    </Badge>
-                    <div className="flex gap-6 text-sm">
-                      <div>
-                        <p className="text-xs text-gray-500">Max Stay</p>
-                        <p className="font-semibold text-[#1A3C5E]">{country.visa.maxDays} days</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Processing</p>
-                        <p className="font-semibold text-[#1A3C5E]">{country.visa.processingTime}</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Plug & Power */}
-            <motion.div {...fadeIn} transition={{ delay: 0.25 }}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
-                    <Plug className="w-5 h-5 text-[#E8733A]" /> Plug & Power
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Plug Types</p>
-                      <div className="flex gap-2">
-                        {country.plug.types.map((t) => (
-                          <div key={t} className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#1A3C5E]/10 to-[#1A3C5E]/20 flex items-center justify-center text-xl font-bold text-[#1A3C5E] border-2 border-[#1A3C5E]/20">
-                            {t}
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Voltage</p>
-                      <div className="flex items-center gap-2">
-                        <Zap className="w-5 h-5 text-yellow-500" />
-                        <span className="text-lg font-bold text-[#1A3C5E]">{country.plug.voltage}</span>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Frequency</p>
-                      <span className="text-lg font-bold text-[#1A3C5E]">{country.plug.frequency}</span>
-                    </div>
-                    <div>
-                      <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Recommendation</p>
-                      <p className="text-sm text-gray-600">{country.plug.adapter}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Local Laws */}
-            <motion.div {...fadeIn} transition={{ delay: 0.3 }}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
-                    <Scale className="w-5 h-5 text-[#E8733A]" /> Local Laws & Customs
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {/* Driving */}
-                    <Card className="hover:shadow-md transition-shadow">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                            <Car className="w-4 h-4 text-blue-600" />
-                          </div>
-                          <p className="font-semibold text-sm text-[#1A3C5E]">Driving</p>
-                        </div>
-                        <div className="space-y-1 text-xs text-gray-600">
-                          <p><span className="font-medium">Side:</span> {country.laws.driving.side}</p>
-                          <p><span className="font-medium">License:</span> {country.laws.driving.license}</p>
-                          <p><span className="font-medium">Speed:</span> {country.laws.driving.speedLimits}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    {/* Alcohol */}
-                    <Card className="hover:shadow-md transition-shadow">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
-                            <Wine className="w-4 h-4 text-purple-600" />
-                          </div>
-                          <p className="font-semibold text-sm text-[#1A3C5E]">Alcohol</p>
-                        </div>
-                        <div className="space-y-1 text-xs text-gray-600">
-                          <p><span className="font-medium">Legal Age:</span> {country.laws.alcohol.legalAge}</p>
-                          <p><span className="font-medium">Public:</span> {country.laws.alcohol.publicDrinking}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    {/* Photography */}
-                    <Card className="hover:shadow-md transition-shadow">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
-                            <Camera className="w-4 h-4 text-green-600" />
-                          </div>
-                          <p className="font-semibold text-sm text-[#1A3C5E]">Photography</p>
-                        </div>
-                        <p className="text-xs text-gray-600">{country.laws.photography}</p>
-                      </CardContent>
-                    </Card>
-                    {/* Drones */}
-                    <Card className="hover:shadow-md transition-shadow">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center">
-                            <Plane className="w-4 h-4 text-sky-600" />
-                          </div>
-                          <p className="font-semibold text-sm text-[#1A3C5E]">Drones</p>
-                        </div>
-                        <p className="text-xs text-gray-600">{country.laws.drones}</p>
-                      </CardContent>
-                    </Card>
-                    {/* LGBTQ+ */}
-                    <Card className="hover:shadow-md transition-shadow">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center">
-                            <Heart className="w-4 h-4 text-pink-600" />
-                          </div>
-                          <p className="font-semibold text-sm text-[#1A3C5E]">LGBTQ+ Safety</p>
-                        </div>
-                        <Badge className={cn('text-xs', lgbtqColorMap[country.laws.lgbtq.color])}>
-                          {country.laws.lgbtq.safety}
-                        </Badge>
-                      </CardContent>
-                    </Card>
-                    {/* Dress Code */}
-                    <Card className="hover:shadow-md transition-shadow">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <Shirt className="w-4 h-4 text-indigo-600" />
-                          </div>
-                          <p className="font-semibold text-sm text-[#1A3C5E]">Dress Code</p>
-                        </div>
-                        <p className="text-xs text-gray-600">{country.laws.dressCode}</p>
-                      </CardContent>
-                    </Card>
-                    {/* Tipping */}
-                    <Card className="hover:shadow-md transition-shadow">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-                            <HandCoins className="w-4 h-4 text-amber-600" />
-                          </div>
-                          <p className="font-semibold text-sm text-[#1A3C5E]">Tipping</p>
-                        </div>
-                        <p className="text-xs text-gray-600">{country.laws.tipping}</p>
-                      </CardContent>
-                    </Card>
-                    {/* Bargaining */}
-                    <Card className="hover:shadow-md transition-shadow">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center">
-                            <ShoppingBag className="w-4 h-4 text-teal-600" />
-                          </div>
-                          <p className="font-semibold text-sm text-[#1A3C5E]">Bargaining</p>
-                        </div>
-                        <p className="text-xs text-gray-600">{country.laws.bargaining}</p>
-                      </CardContent>
-                    </Card>
-                    {/* Smoking */}
-                    <Card className="hover:shadow-md transition-shadow">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
-                            <Cigarette className="w-4 h-4 text-gray-600" />
-                          </div>
-                          <p className="font-semibold text-sm text-[#1A3C5E]">Smoking</p>
-                        </div>
-                        <p className="text-xs text-gray-600">{country.laws.smoking}</p>
-                      </CardContent>
-                    </Card>
-                    {/* Import */}
-                    <Card className="hover:shadow-md transition-shadow">
-                      <CardContent className="py-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
-                            <AlertTriangle className="w-4 h-4 text-red-600" />
-                          </div>
-                          <p className="font-semibold text-sm text-[#1A3C5E]">Import Restrictions</p>
-                        </div>
-                        <p className="text-xs text-gray-600">{country.laws.importRestrictions}</p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Emergency Numbers */}
-            <motion.div {...fadeIn} transition={{ delay: 0.35 }}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
-                    <Phone className="w-5 h-5 text-red-500" /> Emergency Numbers
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-                    {[
-                      { label: 'Police', number: country.emergency.police, icon: Shield, color: 'from-blue-500 to-blue-700' },
-                      { label: 'Ambulance', number: country.emergency.ambulance, icon: Heart, color: 'from-red-500 to-red-700' },
-                      { label: 'Fire', number: country.emergency.fire, icon: AlertTriangle, color: 'from-orange-500 to-orange-700' },
-                      { label: 'Universal', number: country.emergency.universal, icon: Phone, color: 'from-green-500 to-green-700' },
-                    ].map((em) => (
-                      <a key={em.label} href={`tel:${em.number}`} className="block">
-                        <Card className={cn('bg-gradient-to-br text-white border-0 hover:shadow-lg transition-shadow cursor-pointer', em.color)}>
-                          <CardContent className="py-5 text-center">
-                            <em.icon className="w-7 h-7 mx-auto mb-2" />
-                            <p className="text-2xl font-bold font-mono">{em.number}</p>
-                            <p className="text-xs text-white/80 mt-1">{em.label}</p>
-                          </CardContent>
-                        </Card>
-                      </a>
-                    ))}
-                  </div>
-                  {country.emergency.other.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {country.emergency.other.map((o) => (
-                        <a key={o.label} href={`tel:${o.number}`} className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 hover:border-[#E8733A] hover:bg-[#E8733A]/5 transition-colors">
-                          <div className="w-10 h-10 rounded-full bg-[#1A3C5E]/10 flex items-center justify-center">
-                            <Phone className="w-4 h-4 text-[#1A3C5E]" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-sm text-[#1A3C5E]">{o.label}</p>
-                            <p className="text-sm text-gray-500 font-mono">{o.number}</p>
-                          </div>
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Currency Info */}
-            <motion.div {...fadeIn} transition={{ delay: 0.4 }}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
-                    <DollarSign className="w-5 h-5 text-[#E8733A]" /> Currency & Prices
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                    <div className="p-4 bg-gradient-to-br from-[#1A3C5E]/5 to-[#1A3C5E]/10 rounded-xl">
-                      <p className="text-xs text-gray-500 uppercase tracking-wide">Currency</p>
-                      <p className="text-xl font-bold text-[#1A3C5E] mt-1">{country.currency.name}</p>
-                      <p className="text-sm text-gray-500">{country.currency.code} ({country.currency.symbol})</p>
-                    </div>
-                    <div className="p-4 bg-gradient-to-br from-[#E8733A]/5 to-[#E8733A]/10 rounded-xl">
-                      <p className="text-xs text-gray-500 uppercase tracking-wide">Exchange Rate</p>
-                      <p className="text-xl font-bold text-[#E8733A] mt-1">{country.prices.exchangeRate}</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">Common Prices</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {[
-                      { label: 'Meal', value: country.prices.meal, emoji: '🍽️' },
-                      { label: 'Coffee', value: country.prices.coffee, emoji: '☕' },
-                      { label: 'Taxi per km', value: country.prices.taxi, emoji: '🚕' },
-                      { label: 'Hotel/night', value: country.prices.hotel, emoji: '🏨' },
-                    ].map((p) => (
-                      <div key={p.label} className="p-3 rounded-xl bg-gray-50 text-center">
-                        <span className="text-2xl">{p.emoji}</span>
-                        <p className="font-semibold text-[#1A3C5E] text-sm mt-1">{p.value}</p>
-                        <p className="text-xs text-gray-500">{p.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Weather */}
-            <motion.div {...fadeIn} transition={{ delay: 0.45 }}>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
-                    <Sun className="w-5 h-5 text-[#E8733A]" /> Best Time to Visit
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m) => {
-                      const isBest = country.weather.bestMonths.includes(m);
-                      const isAvoid = country.weather.avoid.includes(m);
-                      return (
-                        <div
-                          key={m}
-                          className={cn(
-                            'w-14 h-14 rounded-xl flex flex-col items-center justify-center text-xs font-medium border-2 transition-all',
-                            isBest && 'bg-green-50 border-green-300 text-green-700',
-                            isAvoid && 'bg-red-50 border-red-300 text-red-700',
-                            !isBest && !isAvoid && 'bg-gray-50 border-gray-200 text-gray-500'
+                          {passportValid && (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className={cn(
+                                'p-3 rounded-xl border-2 flex items-center gap-3 flex-1',
+                                passportValid.isOk
+                                  ? 'bg-green-50 border-green-200'
+                                  : 'bg-red-50 border-red-200'
+                              )}
+                            >
+                              {passportValid.isOk ? (
+                                <CheckCircle className="w-6 h-6 text-green-600 shrink-0" />
+                              ) : (
+                                <XCircle className="w-6 h-6 text-red-600 shrink-0" />
+                              )}
+                              <div>
+                                <p className={cn('font-semibold text-sm', passportValid.isOk ? 'text-green-700' : 'text-red-700')}>
+                                  {passportValid.isOk ? 'Passport Valid' : 'Passport May Not Be Accepted'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {passportValid.monthsRemaining} months remaining &middot; Expires {passportValid.expiryDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </p>
+                              </div>
+                            </motion.div>
                           )}
-                        >
-                          <span className="font-bold">{m}</span>
-                          <span className="text-[10px]">{isBest ? 'Best' : isAvoid ? 'Avoid' : ''}</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex gap-4 text-xs text-gray-500 mb-3">
-                    <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-green-300" /> Best months</span>
-                    <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-red-300" /> Avoid</span>
-                    <span className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-gray-200" /> Moderate</span>
-                  </div>
-                  <p className="text-sm text-gray-600 bg-blue-50 p-3 rounded-xl">
-                    <Info className="w-4 h-4 inline mr-1 text-blue-500" />
-                    {country.weather.note}
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
+                      </div>
 
-            {/* Safety Advisory */}
-            <motion.div {...fadeIn} transition={{ delay: 0.5 }}>
-              <Card className={cn('border', safetyLevelMap[country.safety.level]?.bg)}>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
-                    <Shield className="w-5 h-5 text-[#E8733A]" /> Safety Advisory
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-start gap-4">
-                    <span className="text-3xl">{safetyLevelMap[country.safety.level]?.icon}</span>
-                    <div>
-                      <Badge className={cn('text-sm', safetyLevelMap[country.safety.level]?.text)}>
-                        Level {country.safety.level}: {country.safety.label}
-                      </Badge>
-                      <p className="text-sm text-gray-600 mt-2">{country.safety.description}</p>
-                    </div>
+                      {/* Entry Restrictions */}
+                      <div>
+                        <h4 className="font-semibold text-[#1A3C5E] flex items-center gap-2 mb-3">
+                          <AlertTriangle className="w-4 h-4 text-[#E8733A]" />
+                          Entry Restrictions & Notes
+                        </h4>
+                        <div className="space-y-2">
+                          {country.visa.entryRestrictions.map((r, i) => (
+                            <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-amber-50/50">
+                              <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                              <p className="text-sm text-gray-700">{r}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Documents Required */}
+                      <div>
+                        <h4 className="font-semibold text-[#1A3C5E] flex items-center gap-2 mb-3">
+                          <FileText className="w-4 h-4 text-[#E8733A]" />
+                          Documents Required
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {country.visa.documentsRequired.map((doc, i) => (
+                            <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
+                              <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                              <p className="text-sm text-gray-700">{doc}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+
+              {/* ═══════════════ TAB 2: Plug & Voltage ═══════════════ */}
+              <TabsContent value="power" className="space-y-6">
+                <motion.div {...fadeIn}>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
+                        <Plug className="w-5 h-5 text-[#E8733A]" /> Electrical Plug & Voltage Guide
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Quick stats */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="p-4 bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl border border-yellow-200">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Zap className="w-5 h-5 text-yellow-600" />
+                            <p className="text-xs text-gray-500 uppercase tracking-wide">Voltage</p>
+                          </div>
+                          <p className="text-2xl font-bold text-[#1A3C5E]">{country.plug.voltage}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {parseInt(country.plug.voltage) === 230
+                              ? 'Compatible with Indian devices (230V)'
+                              : parseInt(country.plug.voltage) < 200
+                                ? 'Voltage converter needed for Indian devices'
+                                : 'Check device compatibility'}
+                          </p>
+                        </div>
+                        <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Signal className="w-5 h-5 text-blue-600" />
+                            <p className="text-xs text-gray-500 uppercase tracking-wide">Frequency</p>
+                          </div>
+                          <p className="text-2xl font-bold text-[#1A3C5E]">{country.plug.frequency}</p>
+                          <p className="text-xs text-gray-500 mt-1">India uses 50Hz</p>
+                        </div>
+                        <div className="p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Plug className="w-5 h-5 text-green-600" />
+                            <p className="text-xs text-gray-500 uppercase tracking-wide">Plug Types</p>
+                          </div>
+                          <p className="text-2xl font-bold text-[#1A3C5E]">
+                            {country.plug.types.join(', ')}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">{country.plug.types.length} type{country.plug.types.length > 1 ? 's' : ''} used</p>
+                        </div>
+                      </div>
+
+                      {/* Plug Type Visual Diagrams */}
+                      <div>
+                        <h4 className="font-semibold text-[#1A3C5E] mb-3">Plug Type Details</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {country.plug.types.map((type) => {
+                            const info = plugTypeInfo[type];
+                            if (!info) return null;
+                            return (
+                              <Card key={type} className="hover:shadow-md transition-shadow overflow-hidden">
+                                <div className="bg-gradient-to-br from-[#1A3C5E]/5 to-[#1A3C5E]/10 p-6 flex items-center justify-center">
+                                  {/* Visual plug diagram */}
+                                  <div className="relative">
+                                    <div className="w-24 h-28 rounded-2xl border-4 border-[#1A3C5E]/30 bg-white flex flex-col items-center justify-center gap-1 relative">
+                                      {/* Top label */}
+                                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#E8733A] text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                                        {info.name}
+                                      </div>
+                                      {/* Pin visualization */}
+                                      {type === 'A' && (
+                                        <div className="flex gap-3 mt-2">
+                                          <div className="w-1.5 h-8 bg-[#1A3C5E] rounded-sm" />
+                                          <div className="w-1.5 h-8 bg-[#1A3C5E] rounded-sm" />
+                                        </div>
+                                      )}
+                                      {type === 'B' && (
+                                        <div className="flex flex-col items-center gap-1 mt-1">
+                                          <div className="flex gap-3">
+                                            <div className="w-1.5 h-6 bg-[#1A3C5E] rounded-sm" />
+                                            <div className="w-1.5 h-6 bg-[#1A3C5E] rounded-sm" />
+                                          </div>
+                                          <div className="w-3 h-3 rounded-full bg-[#1A3C5E]" />
+                                        </div>
+                                      )}
+                                      {type === 'C' && (
+                                        <div className="flex gap-4 mt-2">
+                                          <div className="w-3 h-6 rounded-full bg-[#1A3C5E]" />
+                                          <div className="w-3 h-6 rounded-full bg-[#1A3C5E]" />
+                                        </div>
+                                      )}
+                                      {type === 'D' && (
+                                        <div className="flex flex-col items-center gap-1 mt-1">
+                                          <div className="w-4 h-4 rounded-full bg-[#1A3C5E]" />
+                                          <div className="flex gap-3">
+                                            <div className="w-4 h-4 rounded-full bg-[#1A3C5E]" />
+                                            <div className="w-4 h-4 rounded-full bg-[#1A3C5E]" />
+                                          </div>
+                                        </div>
+                                      )}
+                                      {type === 'E' && (
+                                        <div className="flex flex-col items-center gap-1 mt-1">
+                                          <div className="w-3 h-3 rounded-full border-2 border-[#1A3C5E] bg-white" />
+                                          <div className="flex gap-4">
+                                            <div className="w-3 h-6 rounded-full bg-[#1A3C5E]" />
+                                            <div className="w-3 h-6 rounded-full bg-[#1A3C5E]" />
+                                          </div>
+                                        </div>
+                                      )}
+                                      {type === 'F' && (
+                                        <div className="flex items-center gap-1 mt-2">
+                                          <div className="w-1 h-10 bg-[#1A3C5E] rounded" />
+                                          <div className="flex gap-3 mx-2">
+                                            <div className="w-3 h-6 rounded-full bg-[#1A3C5E]" />
+                                            <div className="w-3 h-6 rounded-full bg-[#1A3C5E]" />
+                                          </div>
+                                          <div className="w-1 h-10 bg-[#1A3C5E] rounded" />
+                                        </div>
+                                      )}
+                                      {type === 'G' && (
+                                        <div className="flex flex-col items-center gap-1 mt-1">
+                                          <div className="w-2 h-6 bg-[#1A3C5E] rounded-sm" />
+                                          <div className="flex gap-2">
+                                            <div className="w-1.5 h-5 bg-[#1A3C5E] rounded-sm" />
+                                            <div className="w-1.5 h-5 bg-[#1A3C5E] rounded-sm" />
+                                          </div>
+                                        </div>
+                                      )}
+                                      {type === 'I' && (
+                                        <div className="flex flex-col items-center gap-1 mt-1">
+                                          <div className="flex gap-2">
+                                            <div className="w-1.5 h-6 bg-[#1A3C5E] rounded-sm rotate-[20deg]" />
+                                            <div className="w-1.5 h-6 bg-[#1A3C5E] rounded-sm -rotate-[20deg]" />
+                                          </div>
+                                          <div className="w-1.5 h-5 bg-[#1A3C5E] rounded-sm" />
+                                        </div>
+                                      )}
+                                      {type === 'O' && (
+                                        <div className="flex flex-col items-center gap-1 mt-1">
+                                          <div className="w-3 h-3 rounded-full bg-[#1A3C5E]" />
+                                          <div className="flex gap-3">
+                                            <div className="w-3 h-5 rounded-full bg-[#1A3C5E]" />
+                                            <div className="w-3 h-5 rounded-full bg-[#1A3C5E]" />
+                                          </div>
+                                        </div>
+                                      )}
+                                      {!['A', 'B', 'C', 'D', 'E', 'F', 'G', 'I', 'O'].includes(type) && (
+                                        <div className="flex gap-3 mt-2">
+                                          <div className="w-3 h-6 rounded-full bg-[#1A3C5E]" />
+                                          <div className="w-3 h-6 rounded-full bg-[#1A3C5E]" />
+                                          <div className="w-3 h-6 rounded-full bg-[#1A3C5E]" />
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <CardContent className="p-4">
+                                  <p className="font-semibold text-[#1A3C5E] text-sm">{info.name}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5">{info.pins}</p>
+                                  <p className="text-xs text-gray-400 mt-1">Common in: {info.countries}</p>
+                                </CardContent>
+                              </Card>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Adapter Recommendation */}
+                      <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                        <div className="flex items-start gap-3">
+                          <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="font-semibold text-sm text-blue-800">Adapter Recommendation</p>
+                            <p className="text-sm text-blue-700 mt-1">{country.plug.adapter}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Voltage comparison */}
+                      <div>
+                        <h4 className="font-semibold text-[#1A3C5E] mb-3">Voltage Comparison</h4>
+                        <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                          <div className="text-center flex-1">
+                            <p className="text-xs text-gray-500">India</p>
+                            <p className="text-xl font-bold text-[#1A3C5E]">230V / 50Hz</p>
+                            <Badge className="mt-1 bg-blue-100 text-blue-700">Type C, D, M</Badge>
+                          </div>
+                          <div className="text-center px-4">
+                            <div className={cn(
+                              'w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-xs',
+                              parseInt(country.plug.voltage) >= 220 && parseInt(country.plug.voltage) <= 240
+                                ? 'bg-green-500' : 'bg-red-500'
+                            )}>
+                              {parseInt(country.plug.voltage) >= 220 && parseInt(country.plug.voltage) <= 240 ? 'OK' : '!!'}
+                            </div>
+                            <p className="text-[10px] text-gray-500 mt-1">
+                              {parseInt(country.plug.voltage) >= 220 && parseInt(country.plug.voltage) <= 240
+                                ? 'Compatible' : 'Needs converter'}
+                            </p>
+                          </div>
+                          <div className="text-center flex-1">
+                            <p className="text-xs text-gray-500">{country.name}</p>
+                            <p className="text-xl font-bold text-[#E8733A]">{country.plug.voltage} / {country.plug.frequency}</p>
+                            <Badge className="mt-1 bg-orange-100 text-orange-700">Type {country.plug.types.join(', ')}</Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+
+              {/* ═══════════════ TAB 3: Time Zone Dashboard ═══════════════ */}
+              <TabsContent value="time" className="space-y-6">
+                <motion.div {...fadeIn}>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* World Clock */}
+                    <Card className="h-full">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
+                          <Clock className="w-5 h-5 text-[#E8733A]" /> World Clock
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        {/* Home Time */}
+                        <div className="text-center p-5 bg-blue-50 rounded-xl">
+                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Home Time ({homeTimezone.name})</p>
+                          <p className="text-4xl font-bold font-mono text-[#1A3C5E]">{formatClock(homeTime)}</p>
+                          <p className="text-sm text-gray-500 mt-1">{formatDate(homeTime)}</p>
+                          <Badge variant="outline" className="mt-2">UTC+5:30</Badge>
+                        </div>
+                        {/* Destination Time */}
+                        <div className="text-center p-5 bg-orange-50 rounded-xl">
+                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{country.name} ({country.timezone.name})</p>
+                          <p className="text-4xl font-bold font-mono text-[#E8733A]">{destTime && formatClock(destTime)}</p>
+                          <p className="text-sm text-gray-500 mt-1">{destTime && formatDate(destTime)}</p>
+                          <div className="flex justify-center gap-2 mt-2">
+                            <Badge variant="outline">UTC{country.timezone.utcOffset >= 0 ? '+' : ''}{country.timezone.utcOffset}</Badge>
+                            <Badge variant="outline" className={country.timezone.dst ? 'bg-yellow-50 text-yellow-700' : ''}>
+                              {country.timezone.dst ? 'DST Active' : 'No DST'}
+                            </Badge>
+                          </div>
+                        </div>
+                        {/* Time Diff & Jet Lag */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="text-center p-4 bg-gray-50 rounded-xl">
+                            <p className="text-xs text-gray-500">Time Difference</p>
+                            <p className="text-2xl font-bold text-[#1A3C5E]">
+                              {hoursDiff}h {country.timezone.utcOffset > homeTimezone.utcOffset ? 'ahead' : hoursDiff === 0 ? '' : 'behind'}
+                            </p>
+                          </div>
+                          <div className="text-center p-4 bg-gray-50 rounded-xl">
+                            <p className="text-xs text-gray-500">Jet Lag Recovery</p>
+                            <p className="text-2xl font-bold text-[#1A3C5E]">~{jetLagDays} day{jetLagDays !== 1 ? 's' : ''}</p>
+                            <p className="text-[10px] text-gray-400 mt-0.5">Approx. 1 day per 2hr shift</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Meeting Planner & Sunrise/Sunset */}
+                    <Card className="h-full">
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
+                          <Globe className="w-5 h-5 text-[#E8733A]" /> Meeting Planner & Daylight
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        {/* Working Hours Overlap */}
+                        <div>
+                          <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Working Hours Overlap (9 AM - 5 PM)</p>
+                          <div className="flex gap-0.5">
+                            {Array.from({ length: 24 }, (_, h) => {
+                              const homeH = (h + homeTimezone.utcOffset + 24) % 24;
+                              const destH = (h + country.timezone.utcOffset + 24) % 24;
+                              const homeW = homeH >= 9 && homeH < 17;
+                              const destW = destH >= 9 && destH < 17;
+                              return (
+                                <div
+                                  key={h}
+                                  className={cn(
+                                    'flex-1 h-6 rounded-sm transition-colors',
+                                    homeW && destW ? 'bg-green-400' : homeW || destW ? 'bg-yellow-200' : 'bg-gray-100'
+                                  )}
+                                  title={`UTC ${h}:00 | Home: ${(h + homeTimezone.utcOffset + 24) % 24}:00 | Dest: ${(h + country.timezone.utcOffset + 24) % 24}:00`}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div className="flex justify-between mt-1">
+                            <span className="text-[10px] text-gray-400">0:00 UTC</span>
+                            <span className="text-[10px] text-gray-400">12:00 UTC</span>
+                            <span className="text-[10px] text-gray-400">23:00 UTC</span>
+                          </div>
+                          <div className="flex gap-4 mt-2 text-[10px] text-gray-500">
+                            <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-green-400" /> Both working</span>
+                            <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-yellow-200" /> One side</span>
+                            <span className="flex items-center gap-1"><div className="w-2.5 h-2.5 rounded-sm bg-gray-100" /> Off hours</span>
+                          </div>
+                        </div>
+
+                        {/* Best Meeting Times */}
+                        <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                          <h4 className="font-semibold text-green-800 text-sm mb-2">Best Meeting Times</h4>
+                          <div className="space-y-1">
+                            {(() => {
+                              const slots: string[] = [];
+                              for (let h = 0; h < 24; h++) {
+                                const homeH = (h + homeTimezone.utcOffset + 24) % 24;
+                                const destH = (h + country.timezone.utcOffset + 24) % 24;
+                                if (homeH >= 9 && homeH < 17 && destH >= 9 && destH < 17) {
+                                  const homeLabel = `${homeH > 12 ? homeH - 12 : homeH || 12}${homeH >= 12 ? 'PM' : 'AM'}`;
+                                  const destLabel = `${destH > 12 ? destH - 12 : destH || 12}${destH >= 12 ? 'PM' : 'AM'}`;
+                                  slots.push(`${homeLabel} IST = ${destLabel} ${country.timezone.name}`);
+                                }
+                              }
+                              return slots.length > 0 ? (
+                                slots.map((s, i) => (
+                                  <p key={i} className="text-sm text-green-700 font-mono">{s}</p>
+                                ))
+                              ) : (
+                                <p className="text-sm text-amber-700">No overlapping business hours. Consider asynchronous communication.</p>
+                              );
+                            })()}
+                          </div>
+                        </div>
+
+                        {/* Sunrise & Sunset */}
+                        <div>
+                          <h4 className="font-semibold text-[#1A3C5E] text-sm mb-3">Sunrise & Sunset</h4>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="p-4 bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl border border-amber-200 text-center">
+                              <Sunrise className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                              <p className="text-xs text-gray-500 uppercase">Sunrise</p>
+                              <p className="text-xl font-bold text-[#1A3C5E]">{country.timezone.sunrise}</p>
+                            </div>
+                            <div className="p-4 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl border border-orange-200 text-center">
+                              <Sunset className="w-8 h-8 text-orange-500 mx-auto mb-2" />
+                              <p className="text-xs text-gray-500 uppercase">Sunset</p>
+                              <p className="text-xl font-bold text-[#1A3C5E]">{country.timezone.sunset}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Jet Lag Tips */}
+                        <div className="p-4 bg-purple-50 rounded-xl border border-purple-200">
+                          <h4 className="font-semibold text-purple-800 text-sm mb-2">Jet Lag Tips</h4>
+                          <ul className="space-y-1 text-xs text-purple-700">
+                            {hoursDiff >= 3 && <li>- Start adjusting sleep 2-3 days before departure</li>}
+                            {hoursDiff >= 5 && <li>- Consider melatonin supplements (consult doctor)</li>}
+                            <li>- Stay hydrated during the flight</li>
+                            <li>- Get sunlight exposure at destination to reset body clock</li>
+                            {country.timezone.utcOffset > homeTimezone.utcOffset && <li>- Traveling east: Try sleeping earlier before trip</li>}
+                            {country.timezone.utcOffset < homeTimezone.utcOffset && <li>- Traveling west: Try staying up later before trip</li>}
+                            <li>- Avoid caffeine and alcohol near bedtime</li>
+                          </ul>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+                </motion.div>
+              </TabsContent>
+
+              {/* ═══════════════ TAB 4: Laws & Regulations ═══════════════ */}
+              <TabsContent value="laws" className="space-y-6">
+                <motion.div {...fadeIn}>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
+                        <Scale className="w-5 h-5 text-[#E8733A]" /> Local Laws & Regulations
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Accordion type="multiple" className="w-full">
+                        {/* Driving */}
+                        <AccordionItem value="driving">
+                          <AccordionTrigger>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                <Car className="w-4 h-4 text-blue-600" />
+                              </div>
+                              <span className="font-semibold text-[#1A3C5E]">Driving Requirements</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pl-11">
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <p className="text-xs text-gray-500">Drive Side</p>
+                                <p className="font-semibold text-[#1A3C5E]">{country.laws.driving.side}</p>
+                              </div>
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <p className="text-xs text-gray-500">License Required</p>
+                                <p className="font-semibold text-[#1A3C5E]">{country.laws.driving.license}</p>
+                              </div>
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <p className="text-xs text-gray-500">Speed Limits</p>
+                                <p className="font-semibold text-[#1A3C5E]">{country.laws.driving.speedLimits}</p>
+                              </div>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+
+                        {/* Alcohol */}
+                        <AccordionItem value="alcohol">
+                          <AccordionTrigger>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                                <Wine className="w-4 h-4 text-purple-600" />
+                              </div>
+                              <span className="font-semibold text-[#1A3C5E]">Alcohol Laws</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-11">
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <p className="text-xs text-gray-500">Legal Drinking Age</p>
+                                <p className="text-2xl font-bold text-[#1A3C5E]">{country.laws.alcohol.legalAge}+</p>
+                              </div>
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <p className="text-xs text-gray-500">Public Drinking</p>
+                                <p className="font-semibold text-[#1A3C5E] text-sm">{country.laws.alcohol.publicDrinking}</p>
+                              </div>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+
+                        {/* Photography */}
+                        <AccordionItem value="photography">
+                          <AccordionTrigger>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                                <Camera className="w-4 h-4 text-green-600" />
+                              </div>
+                              <span className="font-semibold text-[#1A3C5E]">Photography Restrictions</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <p className="text-sm text-gray-600 pl-11">{country.laws.photography}</p>
+                          </AccordionContent>
+                        </AccordionItem>
+
+                        {/* Drones */}
+                        <AccordionItem value="drones">
+                          <AccordionTrigger>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-sky-100 flex items-center justify-center">
+                                <Plane className="w-4 h-4 text-sky-600" />
+                              </div>
+                              <span className="font-semibold text-[#1A3C5E]">Drone Laws</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <p className="text-sm text-gray-600 pl-11">{country.laws.drones}</p>
+                          </AccordionContent>
+                        </AccordionItem>
+
+                        {/* LGBTQ+ */}
+                        <AccordionItem value="lgbtq">
+                          <AccordionTrigger>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center">
+                                <Heart className="w-4 h-4 text-pink-600" />
+                              </div>
+                              <span className="font-semibold text-[#1A3C5E]">LGBTQ+ Safety</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="pl-11">
+                              <Badge className={cn('text-sm px-3 py-1', lgbtqColorMap[country.laws.lgbtq.color])}>
+                                {country.laws.lgbtq.safety}
+                              </Badge>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+
+                        {/* Dress Code */}
+                        <AccordionItem value="dress">
+                          <AccordionTrigger>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center">
+                                <Shirt className="w-4 h-4 text-indigo-600" />
+                              </div>
+                              <span className="font-semibold text-[#1A3C5E]">Dress Code</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <p className="text-sm text-gray-600 pl-11">{country.laws.dressCode}</p>
+                          </AccordionContent>
+                        </AccordionItem>
+
+                        {/* Drug/Medication Rules */}
+                        <AccordionItem value="drugs">
+                          <AccordionTrigger>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center">
+                                <Pill className="w-4 h-4 text-red-600" />
+                              </div>
+                              <span className="font-semibold text-[#1A3C5E]">Drug & Medication Rules</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="pl-11 p-3 bg-red-50 rounded-lg border border-red-200">
+                              <p className="text-sm text-red-800">{country.laws.drugs}</p>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+
+                        {/* Smoking */}
+                        <AccordionItem value="smoking">
+                          <AccordionTrigger>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                                <Cigarette className="w-4 h-4 text-gray-600" />
+                              </div>
+                              <span className="font-semibold text-[#1A3C5E]">Smoking Regulations</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <p className="text-sm text-gray-600 pl-11">{country.laws.smoking}</p>
+                          </AccordionContent>
+                        </AccordionItem>
+
+                        {/* Import Restrictions */}
+                        <AccordionItem value="import">
+                          <AccordionTrigger>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                              </div>
+                              <span className="font-semibold text-[#1A3C5E]">Import Restrictions</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <p className="text-sm text-gray-600 pl-11">{country.laws.importRestrictions}</p>
+                          </AccordionContent>
+                        </AccordionItem>
+
+                        {/* Tipping & Bargaining */}
+                        <AccordionItem value="tipping">
+                          <AccordionTrigger>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center">
+                                <HandCoins className="w-4 h-4 text-teal-600" />
+                              </div>
+                              <span className="font-semibold text-[#1A3C5E]">Tipping & Bargaining</span>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-11">
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <p className="text-xs text-gray-500">Tipping</p>
+                                <p className="text-sm font-medium text-[#1A3C5E]">{country.laws.tipping}</p>
+                              </div>
+                              <div className="p-3 bg-gray-50 rounded-lg">
+                                <p className="text-xs text-gray-500">Bargaining</p>
+                                <p className="text-sm font-medium text-[#1A3C5E]">{country.laws.bargaining}</p>
+                              </div>
+                            </div>
+                          </AccordionContent>
+                        </AccordionItem>
+                      </Accordion>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+
+              {/* ═══════════════ TAB 5: eSIM & Local SIM ═══════════════ */}
+              <TabsContent value="sim" className="space-y-6">
+                <motion.div {...fadeIn}>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-[#1A3C5E]">
+                        <Smartphone className="w-5 h-5 text-[#E8733A]" /> eSIM & Local SIM Guide
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* eSIM Support Status */}
+                      <div className={cn(
+                        'p-5 rounded-xl border-2 flex items-center gap-4',
+                        country.sim.esimSupported ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'
+                      )}>
+                        {country.sim.esimSupported ? (
+                          <CheckCircle className="w-8 h-8 text-green-600 shrink-0" />
+                        ) : (
+                          <AlertCircle className="w-8 h-8 text-orange-600 shrink-0" />
+                        )}
+                        <div>
+                          <p className="text-lg font-bold text-[#1A3C5E]">
+                            {country.sim.esimSupported ? 'eSIM Supported' : 'eSIM Not Available'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {country.sim.esimSupported
+                              ? 'Your eSIM-compatible device can connect instantly'
+                              : 'Physical SIM card required for this destination'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Device Compatibility Note */}
+                      <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
+                        <div className="flex items-start gap-3">
+                          <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="font-semibold text-sm text-blue-800">eSIM Device Compatibility</p>
+                            <p className="text-sm text-blue-700 mt-1">
+                              eSIM is supported on iPhone XS/XR and later, Samsung Galaxy S20+, Google Pixel 3a+, and most flagship phones from 2020 onwards. Check Settings &gt; Cellular/Mobile to verify your device supports eSIM.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Provider Cards */}
+                      <div>
+                        <h4 className="font-semibold text-[#1A3C5E] mb-3">Recommended Providers</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {country.sim.providers.map((provider, i) => (
+                            <Card key={i} className="hover:shadow-md transition-shadow border-2 hover:border-[#E8733A]/30">
+                              <CardContent className="pt-5 pb-4">
+                                <div className="flex items-start justify-between mb-3">
+                                  <div>
+                                    <p className="font-bold text-[#1A3C5E] text-sm">{provider.name}</p>
+                                    <Badge className={cn(
+                                      'text-[10px] mt-1',
+                                      provider.type === 'eSIM'
+                                        ? 'bg-purple-100 text-purple-700'
+                                        : 'bg-blue-100 text-blue-700'
+                                    )}>
+                                      {provider.type}
+                                    </Badge>
+                                  </div>
+                                  {provider.type === 'eSIM' ? (
+                                    <Wifi className="w-5 h-5 text-purple-500" />
+                                  ) : (
+                                    <Smartphone className="w-5 h-5 text-blue-500" />
+                                  )}
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <DollarSign className="w-3.5 h-3.5 text-gray-400" />
+                                    <span className="text-sm text-gray-700">{provider.dataPrice}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Signal className="w-3.5 h-3.5 text-gray-400" />
+                                    <span className="text-sm text-gray-700">{provider.coverage}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Zap className="w-3.5 h-3.5 text-gray-400" />
+                                    <span className="text-sm text-gray-700">{provider.speed}</span>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Registration Info */}
+                      <div className={cn(
+                        'p-4 rounded-xl border',
+                        country.sim.registrationRequired
+                          ? 'bg-amber-50 border-amber-200'
+                          : 'bg-green-50 border-green-200'
+                      )}>
+                        <div className="flex items-start gap-3">
+                          <FileText className={cn(
+                            'w-5 h-5 mt-0.5 shrink-0',
+                            country.sim.registrationRequired ? 'text-amber-600' : 'text-green-600'
+                          )} />
+                          <div>
+                            <p className={cn(
+                              'font-semibold text-sm',
+                              country.sim.registrationRequired ? 'text-amber-800' : 'text-green-800'
+                            )}>
+                              {country.sim.registrationRequired
+                                ? 'Registration Required'
+                                : 'No Registration Needed'}
+                            </p>
+                            <p className="text-sm text-gray-600 mt-1">{country.sim.registrationNote}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Best For Recommendation */}
+                      <div className="p-4 bg-[#E8733A]/5 rounded-xl border border-[#E8733A]/20">
+                        <div className="flex items-start gap-3">
+                          <Shield className="w-5 h-5 text-[#E8733A] mt-0.5 shrink-0" />
+                          <div>
+                            <p className="font-semibold text-sm text-[#1A3C5E]">Our Recommendation</p>
+                            <p className="text-sm text-gray-700 mt-1">{country.sim.bestFor}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+            </Tabs>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Empty State */}
       {!country && (
         <motion.div {...fadeIn} transition={{ delay: 0.2 }} className="text-center py-16">
           <Globe className="w-16 h-16 text-gray-200 mx-auto mb-4" />

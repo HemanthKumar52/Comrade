@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"/c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/\" | head -30)",
+      "Bash(ls -la \"/c/Users/venka/partner-app/packages/web/src/app/\\(dashboard\\)/\" | head -50)",
+      "Bash(find \"/c/Users/venka/partner-app/packages/shared/src/types\" -type f -name \"*.ts\" -exec wc -l {} + | tail -1)",
+      "Bash(find /c/Users/venka/partner-app -type f -name \".env*\" 2>/dev/null | head -20)",
+      "Bash(grep -r \"api.google\\\\|api.openweather\\\\|cloudinary\\\\|firebase\\\\|AUTH\\\\|SECRET\\\\|API_KEY\" /c/Users/venka/partner-app/packages/api/src --include=\"*.ts\" 2>/dev/null | head -20)",
+      "Bash(grep -r \"firebase\\\\|stripe\\\\|sendgrid\\\\|twilio\\\\|cloudinary\\\\|s3\\\\|aws\\\\|fcm\\\\|FCM\\\\|mapbox\\\\|maptiler\\\\|google\" /c/Users/venka/partner-app/packages/api/src --include=\"*.ts\" 2>/dev/null | grep -v \"node_modules\" | head -30)",
+      "Bash(grep -r \"MINIO\\\\|S3\\\\|AWS\\\\|STRIPE\\\\|PAYMENT\\\\|FIREBASE\\\\|GOOGLE_CLIENT\" /c/Users/venka/partner-app/packages/api/.env* 2>/dev/null)",
+      "Bash(find /c/Users/venka/partner-app/packages/api/src -name \"*upload*\" -o -name \"*storage*\" -o -name \"*file*\" 2>/dev/null | head -20)",
+      "Bash(find /c/Users/venka/partner-app -name \"config*\" -o -name \".env*\" -type f 2>/dev/null | grep -v node_modules | grep -v \".next\" | sort)",
+      "Bash(grep -r \"http:/\\\\|https:/\\\\|fetch\\\\|axios\" /c/Users/venka/partner-app/packages/api/src --include=\"*.ts\" 2>/dev/null | grep -v \"node_modules\" | grep -v \"\\\\.ts:\" | cut -d: -f1 | sort -u)",
+      "Bash(grep -l \"fetch\\\\|axios\\\\|http\" /c/Users/venka/partner-app/packages/api/src/**/*.ts 2>/dev/null)",
+      "Bash(for dir:*)",
+      "Bash(ls -la \"C:\\\\Users\\\\venka\\\\partner-app\\\\packages\\\\web\\\\src\\\\app\\\\\\(dashboard\\)\" | grep -E \"\\\\.tsx$\")",
+      "Bash(find \"C:\\\\Users\\\\venka\\\\partner-app\\\\packages\\\\web\\\\src\\\\app\\\\\\(dashboard\\)\" -maxdepth 1 -type d | sort)",
+      "Bash(wc -l /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/accessibility/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/passport/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/travel-kit/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/phrases/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/connectivity/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/traffic/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/vehicles/page.tsx /c/Users/venka/partner-app/packages/web/src/app/\\\\\\(dashboard\\\\\\)/weather/page.tsx)"
+    ]
+  }
+}
